@@ -1,0 +1,20 @@
+{
+  "name": "@selfpage/markdown",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The single New! Markdown serializer, validation rules and preview sanitizer wrapper",
+  "exports": {
+    ".": "./src/index.ts",
+    "./preview": "./src/preview.ts",
+    "./sanitize": "./src/sanitize-markdown.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@selfpage/content-model": "0.1.0",
+    "sanitize-html": "2.18.2",
+    "yaml": "^2.9.1"
+  }
+}

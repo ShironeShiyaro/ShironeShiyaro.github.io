@@ -1,0 +1,37 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PublicationList from '../components/content/publications/PublicationList.astro';
+import { getSiteData } from '../lib/content';
+
+const { publications } = await getSiteData();
+const { Content } = await render(publications);
+---
+
+<BaseLayout title={publications.data.title} description="Selected publications (placeholder content).">
+  <article class="publications" aria-labelledby="publications-title">
+    <h1 id="publications-title" class="publications__title">{publications.data.title}</h1>
+    <div class="publications__intro">
+      <Content />
+    </div>
+    <PublicationList items={publications.data.items} />
+  </article>
+</BaseLayout>
+
+<style>
+  .publications__title {
+    margin-block: 0 var(--space-6);
+    padding-block-end: var(--space-4);
+    border-block-end: var(--size-control-border) solid var(--color-border);
+    overflow-wrap: anywhere;
+    hyphens: auto;
+  }
+
+  .publications__intro {
+    display: flow-root;
+  }
+
+  .publications__intro > :last-child {
+    margin-block-end: 0;
+  }
+</style>

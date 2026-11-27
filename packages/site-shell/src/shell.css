@@ -1,0 +1,835 @@
+/* SelfPage shared site shell (task 07.5, D29).
+ *
+ * Single source of truth for the public top bar, the sliding/overlay drawer and
+ * the navigation hierarchy. Imported verbatim by the public Astro site
+ * (apps/site/src/layouts/BaseLayout.astro) and by the author app
+ * (apps/author/src/main.tsx), so the two origins cannot drift in geometry or
+ * colour: top-bar band, 19.4% sidebar, first-row height, level-1/2/3 rows,
+ * fixed Settings row, current/hover states, preview cards and the narrow
+ * overlay all come from this file.
+ *
+ * The first section below was the site-owned shell.css (top bar + drawer
+ * geometry); after it comes the former site navigation.css (drawer internals).
+ * The author app reuses the same DOM contract (data-drawer-*, .site-nav__*,
+ * .top-bar) and the same CSS custom properties from @selfpage/design-tokens.
+ */
+
+/* SelfPage page shell: fixed top bar, overlay/sliding drawer, article container.
+ *
+ * Layout contract:
+ * - `:root[data-drawer-open]` is the single layout state flag.
+ * - Menu and brand share `--chrome-block-start`, `--chrome-block-size`,
+ *   `--chrome-inline-start` and `--chrome-gap`; they never re-center inside the
+ *   taller S row.
+ * - The drawer is drawn beneath the top bar. When open, the top bar's segment
+ *   above the drawer is transparent so the sidebar reaches the viewport top
+ *   while the chrome stays in one DOM instance above it.
+ * - Wide screens (>48em): 19.4% sidebar that slides in and pushes the article
+ *   container right. Narrow screens (<=48em): 80% overlay with a backdrop and
+ *   external inert; the article never shifts.
+ * - Task 03 owns the toggle, modal semantics and navigation internals; task 02
+ *   owns tokens, the fixed bar and the base shell geometry.
+ */
+
+.top-bar {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: var(--z-topbar);
+  min-block-size: var(--layout-topbar-offset);
+  padding-block-start: var(--safe-inset-top);
+}
+
+/* Opaque sidebar-coloured band across the full width, in both drawer states
+ * (D24, user 2026-11-25): the colour boundary with the article is below the
+ * whole bar, not only above the drawer. The chrome stays in this single
+ * top-bar instance above the drawer. */
+.top-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--color-sidebar);
+}
+
+.top-bar__chrome {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--chrome-gap);
+  min-block-size: var(--size-topbar);
+  padding-block-start: var(--chrome-block-start);
+  padding-inline: var(--chrome-inline-start) var(--chrome-inline-end);
+}
+
+/* Reserves T in normal flow because the top bar is position: fixed. The
+ * top bar's own height is exactly T + safe-area for the shipped English
+ * chrome, so the fixed bar and this spacer stay in sync at every tested text
+ * scale without a JS measurement step. */
+.site-topbar-spacer {
+  block-size: var(--layout-topbar-offset);
+  pointer-events: none;
+}
+
+.menu-trigger {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--chrome-block-size);
+  min-block-size: var(--chrome-block-size);
+  margin: 0;
+  padding: 0;
+  color: var(--color-text);
+  background-color: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.menu-trigger svg {
+  inline-size: var(--size-icon-md);
+  block-size: var(--size-icon-md);
+}
+
+@media (hover: hover) {
+  .menu-trigger:hover {
+    background-color: var(--color-state-surface);
+  }
+}
+
+.site-brand {
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  min-inline-size: 0;
+  min-block-size: var(--chrome-block-size);
+  /* D24: the brand may extend to the right across the whole top bar. Words are
+     never split internally; a narrow viewport wraps between words instead. */
+  max-inline-size: var(--chrome-brand-max-inline);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  text-decoration: none;
+  overflow-wrap: normal;
+  word-break: normal;
+  border-radius: var(--radius-sm);
+}
+
+.site-brand:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+/* Drawer shell: fixed to the viewport, below the top bar in the stack. Closed
+ * state slides fully off-screen and is removed from the tab order by `inert`
+ * (set by the navigation controller) plus this delayed `visibility` change.
+ * The delay lets the close slide finish without JS transitionend handling;
+ * under reduced motion the motion token is 0ms, so hiding is immediate. */
+.site-drawer {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: var(--z-drawer);
+  display: flex;
+  flex-direction: column;
+  inline-size: var(--drawer-inline-size);
+  min-block-size: 0;
+  padding-block-end: var(--safe-inset-block-end);
+  padding-inline-start: var(--safe-inset-inline-start);
+  background-color: var(--color-sidebar);
+  transform: translateX(-100%);
+  visibility: hidden;
+  pointer-events: none;
+  overscroll-behavior: contain;
+  transition:
+    transform var(--motion-duration-base) var(--motion-easing-standard),
+    visibility 0s linear var(--motion-duration-base);
+}
+
+:root[data-drawer-open="true"] .site-drawer {
+  transform: translateX(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    transform var(--motion-duration-base) var(--motion-easing-standard),
+    visibility 0s linear 0s;
+}
+
+/* The inline boot resolves the stored state during parsing. If the browser had
+ * already painted the server-rendered open drawer, that initial close must not
+ * animate: the delayed `visibility` transition would keep a sliding drawer
+ * visible and flash. The boot script sets `data-drawer-booting` before applying
+ * the state and removes it two frames later, so explicit toggles after load
+ * still animate normally. */
+:root[data-drawer-booting] .site-drawer {
+  transition: none;
+}
+
+/* S = 2H. Includes the top-bar band plus the extra first-row space. */
+.site-drawer__first-row {
+  flex: none;
+  min-block-size: calc(var(--size-drawer-first-row) + var(--safe-inset-top));
+}
+
+/* Article container: main is the measured 59%-of-viewport container. Text can
+ * use an independent 80ch measure inside it without shrinking the container.
+ * Open state: centered in the area right of the 19.4% drawer (center 59.7%).
+ * Closed state: centered in the full viewport (center 50%). The offset is one
+ * CSS custom property so the margin can transition. */
+.site-main {
+  inline-size: var(--layout-article-inline);
+  min-block-size: 50dvh;
+  margin-inline-start: var(--layout-article-offset-inline);
+  margin-inline-end: 0;
+  padding-block: var(--layout-article-padding-block-start) var(--layout-article-padding-block-end);
+  padding-inline: var(--layout-article-padding-inline);
+  background-color: var(--color-page);
+}
+
+.site-footer {
+  inline-size: var(--layout-article-inline);
+  margin-inline-start: var(--layout-article-offset-inline);
+  margin-inline-end: 0;
+  padding: var(--space-6) var(--layout-article-padding-inline);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  border-block-start: var(--size-control-border) solid var(--color-border);
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+/* Wide-screen layout. 48em is the visual-contract breakpoint: > 48em uses the
+ * 19.4% fixed drawer and the 59% article container; <= 48em switches to the
+ * narrow overlay below. The extra 1/16em avoids a 768.0px overlap. */
+@media (min-width: 48.0625em) {
+  :root {
+    --drawer-inline-size: var(--layout-sidebar-inline);
+  }
+
+  /* Closed drawer: the article container keeps 59% but centers in the full
+   * viewport, so it visibly shifts left instead of keeping the open-state
+   * start edge. */
+  :root[data-drawer-open="false"] {
+    --layout-article-offset-inline: calc(50% - var(--layout-article-inline) / 2);
+  }
+
+  /* The article follows the drawer with the same duration/easing. */
+  .site-main,
+  .site-footer {
+    transition: margin-inline-start var(--motion-duration-base) var(--motion-easing-standard);
+  }
+}
+
+@media (max-width: 48em) {
+  /* Narrow overlay: 80% of the viewport so the dimmed page stays visible and
+   * the backdrop remains a real pointer target. It starts below the fixed top
+   * bar (which stays fully intact and sidebar-coloured) and covers the content
+   * area, so the shared chrome can never be overlapped by the drawer. */
+  .site-drawer {
+    inset-block-start: var(--layout-topbar-offset);
+    inline-size: var(--drawer-inline-size);
+    border-inline-end: var(--size-control-border) solid var(--color-border);
+  }
+
+  .site-drawer__first-row {
+    display: none;
+  }
+
+  .site-main {
+    inline-size: var(--layout-article-inline-narrow);
+    min-block-size: 40dvh;
+    margin-inline: 0;
+    padding-block: var(--space-8) var(--space-12);
+    padding-inline: max(var(--layout-article-padding-inline-narrow), var(--safe-inset-inline-start))
+      max(var(--layout-article-padding-inline-narrow), var(--safe-inset-inline-end));
+  }
+
+  .site-footer {
+    inline-size: var(--layout-article-inline-narrow);
+    margin-inline: 0;
+    padding-inline: max(var(--layout-article-padding-inline-narrow), var(--safe-inset-inline-start))
+      max(var(--layout-article-padding-inline-narrow), var(--safe-inset-inline-end));
+  }
+
+  /* No-JS fallback: the drawer becomes the task-02 inline navigation band so
+   * navigation is never hidden when the controller cannot run. */
+  :root:not([data-nav-ready]) .site-drawer {
+    position: static;
+    inline-size: 100%;
+    padding-inline: 0;
+    padding-block-end: 0;
+    border-inline-end: 0;
+    border-block-end: var(--size-control-border) solid var(--color-border);
+    transform: none;
+    visibility: visible;
+    pointer-events: auto;
+    transition: none;
+  }
+
+  :root:not([data-nav-ready]) .site-drawer__first-row,
+  :root:not([data-nav-ready]) .site-drawer__close-row,
+  :root:not([data-nav-ready]) .site-drawer__footer {
+    display: none;
+  }
+
+  :root:not([data-nav-ready]) .site-drawer__scroll {
+    overflow: visible;
+    padding-block: var(--space-2);
+    padding-inline: max(var(--space-2), var(--safe-inset-inline-start))
+      max(var(--space-2), var(--safe-inset-inline-end));
+  }
+}
+
+@media (max-width: 24em) {
+  /* At 320px with 200% text the chrome keeps 14px (28px scaled) brand text.
+   * Tightening the leading/trailing padding by one step keeps the longest
+   * word ("Homepage") intact; nothing is clipped or hidden. */
+  :root {
+    --chrome-inline-start: max(var(--space-2), var(--safe-inset-inline-start));
+    --chrome-inline-end: max(var(--space-2), var(--safe-inset-inline-end));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* `data-motion="full"` is the explicit Full choice (task 08): it restores the
+     motion tokens, so this media-only "no transitions at all" reset must not
+     apply to it. System and Reduce keep the static state. */
+  :root:not([data-motion="full"]) .site-drawer,
+  :root:not([data-motion="full"]) .menu-trigger,
+  :root:not([data-motion="full"]) .site-main,
+  :root:not([data-motion="full"]) .site-footer {
+    transition: none;
+  }
+}
+
+/* Task 03 navigation layer.
+ *
+ * Owned here: backdrop, drawer close row, the middle navigation scroller, the
+ * level-1/2/3 hierarchy, current/hover states, the fixed Settings row, the
+ * long-title marquee and the fixed-size preview cards.
+ * Drawer geometry (position, width, slide transform) lives in `shell.css`.
+ */
+
+:root {
+  --drawer-inline-size: var(--layout-sidebar-inline);
+}
+
+/* Narrow modal scroll lock. When a classic scrollbar exists the extra modifier
+ * reserves its width so the viewport width does not jump on lock. Overlay
+ * scrollbars (mobile/headless) get no synthetic gutter. */
+:root.nav-scroll-locked {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+:root.nav-scroll-locked.nav-scroll-locked--gutter {
+  scrollbar-gutter: stable;
+}
+
+/* Drawer backdrop: narrow screens only, below the top bar and drawer. */
+.site-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-drawer) - 10);
+  display: none;
+  background-color: rgb(0 0 0 / 0.45);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Drawer close row: explicit narrow-screen close control. It is fixed above
+ * the middle scroller and below the shared top-bar chrome. */
+.site-drawer__close-row {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  padding-block: var(--space-1);
+  padding-inline: var(--space-2);
+}
+
+.site-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: max(2.75rem, var(--size-target-min));
+  min-inline-size: max(2.75rem, var(--size-target-min));
+  max-inline-size: 100%;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  background-color: transparent;
+  border: var(--size-control-border) solid var(--color-control-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.site-drawer__close span {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.site-drawer__close svg {
+  inline-size: var(--size-icon-sm);
+  block-size: var(--size-icon-sm);
+}
+
+.site-drawer__close:hover {
+  background-color: var(--color-state-surface);
+}
+
+/* Middle scroller: the only scrolling part of the drawer. */
+.site-drawer__scroll {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: var(--space-2) var(--space-6);
+  padding-inline: var(--space-2);
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  scrollbar-gutter: stable;
+}
+
+/* Progressive scrollbar appearance: hover/focus reveals the thumb, but wheel,
+ * keyboard and touch scrolling always work. */
+.site-drawer__scroll:hover,
+.site-drawer__scroll:focus-within {
+  scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+
+@media (hover: none) {
+  .site-drawer__scroll {
+    scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+  }
+}
+
+@media (prefers-contrast: more) {
+  .site-drawer__scroll {
+    scrollbar-color: light-dark(#000000, #ffffff) light-dark(#ffffff, #000000);
+  }
+}
+
+.site-drawer__scroll:focus-visible {
+  outline: var(--size-focus-ring) solid var(--color-focus);
+  outline-offset: calc(-1 * var(--size-focus-ring));
+}
+
+/* Settings: fixed bottom row, same H as a level-1 control. Task 08 turns the
+ * placeholder into a real link to the public /settings/ page. */
+.site-drawer__footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  min-block-size: var(--size-drawer-footer);
+  min-inline-size: 0;
+  padding-inline: var(--space-2);
+  border-block-start: var(--size-control-border) solid var(--color-border);
+}
+
+.site-nav__settings {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-inline-size: 0;
+  min-block-size: max(var(--size-nav-item), var(--size-target-min));
+  padding-inline: calc(var(--space-3) + var(--size-state-indicator)) var(--space-3);
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-snug);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  border-inline-start: var(--size-state-indicator) solid transparent;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.site-nav__settings .site-nav__label {
+  min-inline-size: 0;
+}
+
+/* The Settings row uses the same current/hover/focus treatment as the
+ * navigation rows, so "you are here" is not colour-only: background, weight and
+ * the start indicator all change together. */
+.site-nav__settings[aria-current="page"] {
+  background-color: var(--color-state-surface);
+  font-weight: var(--font-weight-semibold);
+  border-inline-start-color: var(--color-state-indicator);
+}
+
+@media (hover: hover) {
+  .site-nav__settings:hover {
+    background-color: var(--color-state-surface);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+}
+
+.site-nav__settings:focus-visible {
+  background-color: var(--color-state-surface);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+@media (forced-colors: active) {
+  .site-nav__settings[aria-current="page"] {
+    outline: var(--size-focus-ring) solid Highlight;
+    outline-offset: calc(-1 * var(--size-focus-ring));
+  }
+}
+
+/* Hierarchy ------------------------------------------------------------- */
+
+.site-nav__list,
+.site-nav__sublist {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-nav__sublist:not([hidden]) {
+  display: flex;
+}
+
+/* The [hidden] attribute must win over the flex display above. */
+.site-nav__sublist[hidden] {
+  display: none;
+}
+
+.site-nav__item {
+  min-inline-size: 0;
+}
+
+.site-nav__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: max(2.75rem, var(--size-target-min));
+  padding-block: var(--space-2);
+  padding-inline: calc(var(--space-3) + var(--size-state-indicator)) var(--space-3);
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-snug);
+  text-decoration: none;
+  border-inline-start: var(--size-state-indicator) solid transparent;
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+  transition: background-color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.site-nav__link--level-1 {
+  min-block-size: max(var(--size-nav-item), var(--size-target-min));
+}
+
+.site-nav__item--level-2 > .site-nav__link {
+  padding-inline-start: calc(var(--space-6) + var(--size-state-indicator));
+  font-size: var(--font-size-sm);
+}
+
+.site-nav__item--level-3 > .site-nav__link {
+  padding-inline-start: calc(var(--space-8) + var(--size-state-indicator));
+  font-size: var(--font-size-sm);
+}
+
+.site-nav__label {
+  min-inline-size: 0;
+}
+
+/* Level-3 label: single line, visual ellipsis, full text stays in the DOM. */
+.site-nav__post-label {
+  display: block;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.site-nav__post-text {
+  display: inline;
+}
+
+.site-nav__year-toggle .site-nav__label {
+  flex: 1 1 auto;
+}
+
+.site-nav__year-toggle::after {
+  content: "";
+  flex: none;
+  inline-size: 0.45rem;
+  block-size: 0.45rem;
+  margin-inline-start: auto;
+  border-inline-end: 2px solid currentColor;
+  border-block-end: 2px solid currentColor;
+  rotate: 45deg;
+}
+
+.site-nav__year-toggle[aria-expanded="true"]::after {
+  rotate: 225deg;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .site-nav__year-toggle::after {
+    transition: rotate var(--motion-duration-fast) var(--motion-easing-standard);
+  }
+}
+
+/* Current, ancestor and hover states ------------------------------------ */
+
+.site-nav__item.is-current > .site-nav__link,
+.site-nav__item.is-current-ancestor > .site-nav__link {
+  background-color: var(--color-state-surface);
+}
+
+.site-nav__item.is-current > .site-nav__link {
+  font-weight: var(--font-weight-semibold);
+  border-inline-start-color: var(--color-state-indicator);
+}
+
+.site-nav__item.is-current-ancestor > .site-nav__link {
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (hover: hover) {
+  .site-nav__link:hover {
+    background-color: var(--color-state-surface);
+  }
+
+  .site-nav__link:hover .site-nav__label {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+}
+
+.site-nav__link:focus-visible {
+  background-color: var(--color-state-surface);
+}
+
+.site-nav__link:focus-visible .site-nav__label {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+@media (forced-colors: active) {
+  .site-nav__item.is-current > .site-nav__link,
+  .site-nav__item.is-current-ancestor > .site-nav__link {
+    outline: var(--size-focus-ring) solid Highlight;
+    outline-offset: calc(-1 * var(--size-focus-ring));
+  }
+
+  .site-nav__year-toggle::after {
+    border-color: currentColor;
+  }
+
+  /* Task 08: in Forced Colors the authored surfaces are replaced by Canvas, so
+   * the fixed top-bar band, the drawer edge and the fixed rows need a system
+   * border to stay distinguishable. */
+  .top-bar {
+    border-block-end: var(--size-control-border) solid CanvasText;
+  }
+
+  .site-drawer {
+    border-inline-end: var(--size-control-border) solid CanvasText;
+  }
+
+  .site-drawer__footer,
+  .site-footer {
+    border-color: CanvasText;
+  }
+
+  .site-brand,
+  .site-nav__settings,
+  .site-nav__link {
+    color: CanvasText;
+  }
+
+  .site-nav__settings[aria-current="page"] {
+    outline: var(--size-focus-ring) solid Highlight;
+    outline-offset: calc(-1 * var(--size-focus-ring));
+  }
+}
+
+/* Long-title marquee: only links flagged as actually overflowing play, and
+ * only when the user has not asked for reduced motion. The duration comes from
+ * a JS measurement, not from the motion tokens, so the explicit Reduced Motion
+ * setting needs its own stop/restore rules below. */
+@media (prefers-reduced-motion: no-preference) {
+  .site-nav__post-link[data-overflow="true"]:is(:hover, :focus-visible) .site-nav__post-label {
+    text-overflow: clip;
+  }
+
+  .site-nav__post-link[data-overflow="true"]:is(:hover, :focus-visible) .site-nav__post-text {
+    display: inline-block;
+    transform: translateX(var(--marquee-distance, 0px));
+    transition: transform var(--marquee-duration, 2s) linear;
+  }
+}
+
+/* Task 08 Reduced Motion setting, explicit states. Full restores the same
+ * user-triggered animation outside the media query, so it also works when the
+ * OS asks for reduced motion; Reduce stops it when the OS does not. */
+:root[data-motion="full"] .site-nav__post-link[data-overflow="true"]:is(:hover, :focus-visible)
+  .site-nav__post-label {
+  text-overflow: clip;
+}
+
+:root[data-motion="full"] .site-nav__post-link[data-overflow="true"]:is(:hover, :focus-visible)
+  .site-nav__post-text {
+  display: inline-block;
+  transform: translateX(var(--marquee-distance, 0px));
+  transition: transform var(--marquee-duration, 2s) linear;
+}
+
+:root[data-motion="reduce"] .site-nav__post-link[data-overflow="true"]:is(:hover, :focus-visible)
+  .site-nav__post-label {
+  text-overflow: ellipsis;
+}
+
+:root[data-motion="reduce"] .site-nav__post-link[data-overflow="true"]:is(:hover, :focus-visible)
+  .site-nav__post-text {
+  display: inline;
+  transform: none;
+  transition: none;
+}
+
+/* The year chevron rotation and the preview fade are pointer-triggered spatial
+ * affordances: Full restores them under an OS reduced-motion setting, Reduce
+ * removes them. The drawer/main/footer transitions read the motion tokens,
+ * which tokens.css already zeroes for Reduce. */
+:root[data-motion="full"] .site-nav__year-toggle::after {
+  transition: rotate var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+:root[data-motion="full"] .nav-preview {
+  transition: opacity var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+:root[data-motion="reduce"] .site-nav__year-toggle::after,
+:root[data-motion="reduce"] .nav-preview {
+  transition: none;
+}
+
+/* Fixed-size preview cards --------------------------------------------- */
+
+.nav-preview-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-popover);
+  pointer-events: none;
+}
+
+.nav-preview {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  visibility: hidden;
+  opacity: 0;
+  inline-size: min(18rem, calc(100vw - 1rem));
+  block-size: 7.5rem;
+  overflow: hidden;
+  padding: var(--space-3);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-snug);
+  background-color: var(--color-popover);
+  border: var(--size-control-border) solid var(--color-border);
+  border-radius: var(--radius-md);
+  pointer-events: none;
+}
+
+.nav-preview[data-open="true"] {
+  visibility: visible;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .nav-preview {
+    transition: opacity var(--motion-duration-fast) var(--motion-easing-standard);
+  }
+}
+
+.nav-preview__title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-preview-title);
+  line-height: var(--line-height-snug);
+  overflow-wrap: anywhere;
+}
+
+.nav-preview__date {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-snug);
+}
+
+/* Narrow overlay -------------------------------------------------------- */
+
+@media (max-width: 48em) {
+  :root {
+    --drawer-inline-size: min(20rem, 80vw, calc(100vw - 1.5rem));
+  }
+
+  .site-backdrop {
+    display: block;
+  }
+
+  :root[data-nav-ready][data-drawer-open="true"] .site-backdrop {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .site-drawer__close-row {
+    display: flex;
+  }
+}
+
+@media (max-width: 48em) and (prefers-reduced-motion: no-preference) {
+  .site-backdrop {
+    transition: opacity var(--motion-duration-base) var(--motion-easing-standard);
+  }
+}
+
+/* Task 08 explicit Full: the backdrop fade also returns when the OS asks for
+ * reduced motion (the duration token is restored by tokens.css). */
+@media (max-width: 48em) {
+  :root[data-motion="full"] .site-backdrop {
+    transition: opacity var(--motion-duration-base) var(--motion-easing-standard);
+  }
+}
+
+/* Legacy WebKit scrollbar fallback (only where scrollbar-color is missing). */
+@supports not (scrollbar-color: auto) {
+  .site-drawer__scroll {
+    scrollbar-width: auto;
+  }
+
+  .site-drawer__scroll::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  .site-drawer__scroll::-webkit-scrollbar-thumb {
+    background-color: var(--color-scrollbar-thumb);
+  }
+
+  .site-drawer__scroll::-webkit-scrollbar-track {
+    background-color: var(--color-scrollbar-track);
+  }
+}

@@ -1,0 +1,176 @@
+# Deploys the static public site to GitHub Pages.
+#
+# This is the ONLY workflow that publishes the public site. A green run of
+# `CI` (ci.yml) says nothing about the live site; this workflow's run is the
+# deployment record. See docs/运维排障与回滚.md §2.
+#
+# Repository variables (Settings → Secrets and variables → Actions → Variables,
+# NOT secrets — all of them are public data):
+#   SITE_URL              — canonical origin, e.g. https://<user>.github.io/ .
+#                           Empty/unset falls back to the code default
+#                           (packages/content-model DEFAULT_SITE_URL).
+#   BASE_PATH             — `/` for a user site (default), `/repo-name/` for a
+#                           project site. Empty/unset normalises to `/`.
+#   PUBLIC_AUTHOR_ORIGIN  — origin of the deployed author Worker, e.g.
+#                           https://selfpage-author.<account>.workers.dev/ .
+#                           It is baked into the New! link
+#                           (`manifest.blog.newHref`). Empty/unset leaves the
+#                           placeholder https://selfpage-author.invalid/ and the
+#                           job prints a warning; set it before you rely on New!.
+name: Deploy public site to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# The exact minimum GitHub Pages deployment needs. `build` narrows itself to
+# `contents: read` so the build job cannot deploy; the `deploy` job inherits the
+# three scopes below. No PAT, no private key, no app secret is used anywhere in
+# this workflow, so nothing sensitive can leak into a log.
+permissions:  # exactly the three scopes a Pages deployment needs, nothing else
+  contents: read  # the only repository scope this workflow may read
+  pages: write
+  id-token: write  # OIDC token for deploy-pages
+
+# One Pages deployment at a time. `cancel-in-progress: false` is deliberate: a
+# cancelled deploy can leave the live site on an older artifact, and a Pages
+# deployment is not safely resumable. New pushes queue behind the running one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build static site
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+      SITE_URL: ${{ vars.SITE_URL }}
+      BASE_PATH: ${{ vars.BASE_PATH }}
+      PUBLIC_AUTHOR_ORIGIN: ${{ vars.PUBLIC_AUTHOR_ORIGIN }}
+    steps:
+      - name: Refuse a manual deploy from a non-main ref
+        # `workflow_dispatch` can be started from ANY branch via the "Run
+        # workflow" dropdown. Without this guard a hand-run would publish that
+        # branch's build to the live site, bypassing main and branch protection
+        # (a push event can only be main, see `on:`). Put first so nothing is
+        # built or uploaded for a refused run.
+        #
+        # The ref is passed through `env:` on purpose: interpolating
+        # `${{ github.ref }}` straight into a `run:` script means GitHub splices
+        # the value into PowerShell source, where `$( ... )` would be evaluated.
+        # Git branch names may contain `$`, `(` and `)`, so that is an injection
+        # path. Environment variables are data, never code.
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        shell: pwsh
+        env:
+          WORKFLOW_REF: ${{ github.ref }}
+        run: |
+          throw "Manual deployment is only allowed from main. This run was started on '$env:WORKFLOW_REF'. Select main in the Run workflow dropdown, or merge the change into main first."
+
+      - name: Checkout
+        # actions/checkout v6.0.3, pinned by commit SHA (tag list checked
+        # 2026-11-26).
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Set up Node.js 24
+        # actions/setup-node v6.5.0, pinned by commit SHA.
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies from the lockfile
+        run: npm ci
+
+      - name: Build the public site only
+        # The author app is a separate Cloudflare deployment and is not part of
+        # the Pages artifact; building it here would only slow the deploy down.
+        run: npm run build --workspace @selfpage/site
+
+      - name: Warn when PUBLIC_AUTHOR_ORIGIN is unset
+        # The New! link is baked in at build time. Without the variable the site
+        # still deploys, but New! points at the https://selfpage-author.invalid
+        # placeholder. This is a warning, not a failure: the static site is
+        # readable and deployable before the author Worker exists.
+        shell: pwsh
+        run: |
+          if ("$env:PUBLIC_AUTHOR_ORIGIN".Trim() -eq '') {
+            Write-Host "::warning title=PUBLIC_AUTHOR_ORIGIN unset::The New! link will point at the placeholder origin https://selfpage-author.invalid/. Set the repository variable PUBLIC_AUTHOR_ORIGIN to the deployed author Worker origin and re-run this workflow."
+            "### Warning: New! link uses the placeholder origin" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            "PUBLIC_AUTHOR_ORIGIN is not set. The deployed site will link New! to https://selfpage-author.invalid/." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          } else {
+            Write-Host "PUBLIC_AUTHOR_ORIGIN=$env:PUBLIC_AUTHOR_ORIGIN"
+          }
+
+      - name: Verify the artifact before it can be published
+        # Internal links must resolve under BASE_PATH, no local absolute path may
+        # survive, no secret / test endpoint may ship, and no sitemap is
+        # generated. A failure here stops the deployment before upload, so a
+        # broken build can never be presented as "live".
+        run: npm run check:dist
+
+      - name: Configure GitHub Pages
+        id: pages
+        # actions/configure-pages v5.0.0, pinned by commit SHA.
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+
+      - name: Check BASE_PATH against the Pages site type
+        shell: pwsh
+        env:
+          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: |
+          function Normalize([string] $value) {
+            $trimmed = "$value".Trim().Trim('/')
+            if ($trimmed -eq '') { return '/' }
+            return "/$trimmed/"
+          }
+          $expected = Normalize $env:PAGES_BASE_PATH
+          $actual = Normalize $env:BASE_PATH
+          Write-Host "Pages base_path : $expected"
+          Write-Host "Build BASE_PATH : $actual"
+          if ($expected -ne $actual) {
+            throw ("BASE_PATH does not match this repository's Pages site type. " +
+              "Set the repository variable BASE_PATH to '$expected' " +
+              "(Settings -> Secrets and variables -> Actions -> Variables), " +
+              "or this deployment would publish links that 404.")
+          }
+
+      - name: Upload the Pages artifact
+        # actions/upload-pages-artifact v4.0.0, pinned by commit SHA.
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
+        with:
+          path: apps/site/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy artifact
+        id: deployment
+        # actions/deploy-pages v4.0.5, pinned by commit SHA. This is the
+        # combination GitHub documents (configure-pages@v5 +
+        # upload-pages-artifact@v4 + deploy-pages@v4); do not bump one of the
+        # three alone.
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
+
+      - name: Deployment summary
+        shell: bash
+        run: |
+          echo "### Public site deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: ${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit exists and the deployment succeeded are separate facts;" >> "$GITHUB_STEP_SUMMARY"
+          echo "this job covers the second one only." >> "$GITHUB_STEP_SUMMARY"

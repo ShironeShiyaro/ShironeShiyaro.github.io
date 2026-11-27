@@ -1,0 +1,10 @@
+{
+  "name": "@selfpage/design-tokens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SelfPage design tokens: color, typography, spacing, motion and shell dimensions",
+  "exports": {
+    "./tokens.css": "./src/tokens.css"
+  }
+}

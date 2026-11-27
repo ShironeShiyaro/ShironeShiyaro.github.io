@@ -1,0 +1,75 @@
+/* Home resume page (task 04).
+ *
+ * The page consumes the validated Home sections from the content collection.
+ * It only owns reading layout: one page heading, one region per resume H1,
+ * restrained separators and reflow-safe text. Navigation/current state stays
+ * with task 03; fragment offsets reuse the shell's scroll-padding. */
+
+.home {
+  min-inline-size: 0;
+}
+
+.home__title {
+  margin-block: 0 var(--space-8);
+  padding-block-end: var(--space-4);
+  border-block-end: var(--size-control-border) solid var(--color-border);
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.home__sections {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.resume-section {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Generous separation is intentional: it gives the scrollspy a clear target
+ * line and keeps adjacent resume sections visually distinct at every text
+ * scale. The first section sits directly below the page heading. */
+.resume-section + .resume-section {
+  margin-block-start: var(--space-12);
+  padding-block-start: var(--space-8);
+  border-block-start: var(--size-control-border) solid var(--color-border);
+}
+
+.resume-section h2 {
+  margin-block: 0 var(--space-4);
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.resume-section__body {
+  min-inline-size: 0;
+}
+
+.resume-section__body > :last-child {
+  margin-block-end: 0;
+}
+
+.resume-section__body strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Fragment targets are the section headings themselves (their id matches the
+ * manifest child). They receive focus after same-page navigation; the heading
+ * is not a control, so the ring is drawn around the heading block only. */
+.resume-section h2:focus {
+  outline: none;
+}
+
+.resume-section h2:focus-visible {
+  outline: var(--size-focus-ring) solid var(--color-focus);
+  outline-offset: var(--size-focus-offset);
+  border-radius: var(--radius-sm);
+}
+
+@media (forced-colors: active) {
+  .resume-section h2:focus-visible {
+    outline-color: Highlight;
+  }
+}

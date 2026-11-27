@@ -1,0 +1,28 @@
+{
+  "name": "@selfpage/site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Public static site for Xinyang Zeng's Homepage",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/react": "^7.1.9",
+    "@selfpage/content-model": "0.1.0",
+    "@selfpage/design-tokens": "0.1.0",
+    "@selfpage/site-shell": "0.1.0",
+    "astro": "^7.4.13",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sanitize-html": "2.18.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/sanitize-html": "^2.16.2"
+  }
+}

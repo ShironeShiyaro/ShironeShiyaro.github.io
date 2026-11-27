@@ -1,0 +1,325 @@
+/*
+ * SelfPage design tokens
+ * ---------------------------------------------------------------------------
+ * Single source of truth for color, typography, spacing, motion and the fixed
+ * shell dimensions. Consumed by the public site (task 02) and by later tasks
+ * (navigation, settings, author editor) through `@selfpage/design-tokens`.
+ *
+ * Rules enforced here:
+ * - No `font-size` on `:root` / `html`: OS text scale and 200% reflow rely on
+ *   the browser-owned root font size. Every size below is `rem`, `em` or a
+ *   viewport-derived layout ratio, and every line-height is unitless.
+ * - Dark / light is resolved by `color-scheme` + `light-dark()` so the system
+ *   preference works before any JavaScript runs. A `prefers-color-scheme`
+ *   fallback is included for browsers without `light-dark()`, and the explicit
+ *   `data-theme` hooks are reserved for task 08's three-state setting.
+ * - The reference image sampling (2026-11-23) fixes page `#151517`,
+ *   sidebar `#1B1B1B`, popover `#2C2C2E` and the composited current/hover
+ *   state `#2D2D2D`. `--color-state-surface` is that opaque composite; the
+ *   translucent `--color-state-overlay` records the layering recipe.
+ * - Layout ratios: sidebar 19.4% of the viewport, article container 59% of the
+ *   viewport above 48em. `main` itself is the article container.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Raw palette ---------------------------------------------------------- */
+  --color-page-light: #ffffff;
+  --color-page-dark: #151517;
+  --color-sidebar-light: #f5f5f5;
+  --color-sidebar-dark: #1b1b1b;
+  --color-popover-light: #f0f0f0;
+  --color-popover-dark: #2c2c2e;
+
+  --color-text-light: #202020;
+  --color-text-dark: #f2f2f2;
+  --color-text-secondary-light: #474747;
+  --color-text-secondary-dark: #c9c9c9;
+
+  --color-border-light: #d4d4d4;
+  --color-border-dark: #454547;
+  /* Stronger boundary for controls that must reach 3:1 non-text contrast. */
+  --color-control-border-light: #8a8a8a;
+  --color-control-border-dark: #7c7c7e;
+
+  --color-link-light: #405f78;
+  --color-link-dark: #a8b8c8;
+  --color-link-hover-light: #2f4e66;
+  --color-link-hover-dark: #c7d6e4;
+
+  --color-focus-light: #0b57d0;
+  --color-focus-dark: #9cc7ff;
+
+  --color-state-overlay-light: rgb(0 0 0 / 0.055);
+  --color-state-overlay-dark: rgb(255 255 255 / 0.079);
+  --color-state-surface-light: #e8e8e8;
+  --color-state-surface-dark: #2d2d2d;
+  --color-state-indicator-light: #405f78;
+  --color-state-indicator-dark: #a8b8c8;
+
+  --color-scrollbar-track-light: transparent;
+  --color-scrollbar-track-dark: transparent;
+  --color-scrollbar-thumb-light: #6b6b6b;
+  --color-scrollbar-thumb-dark: #8a8a8a;
+
+  /* Semantic colors (system preference by default) ----------------------- */
+  --color-page: light-dark(var(--color-page-light), var(--color-page-dark));
+  --color-sidebar: light-dark(var(--color-sidebar-light), var(--color-sidebar-dark));
+  --color-popover: light-dark(var(--color-popover-light), var(--color-popover-dark));
+  --color-text: light-dark(var(--color-text-light), var(--color-text-dark));
+  --color-text-secondary: light-dark(var(--color-text-secondary-light), var(--color-text-secondary-dark));
+  --color-border: light-dark(var(--color-border-light), var(--color-border-dark));
+  --color-control-border: light-dark(var(--color-control-border-light), var(--color-control-border-dark));
+  --color-link: light-dark(var(--color-link-light), var(--color-link-dark));
+  --color-link-hover: light-dark(var(--color-link-hover-light), var(--color-link-hover-dark));
+  --color-focus: light-dark(var(--color-focus-light), var(--color-focus-dark));
+  --color-state-overlay: light-dark(var(--color-state-overlay-light), var(--color-state-overlay-dark));
+  --color-state-surface: light-dark(var(--color-state-surface-light), var(--color-state-surface-dark));
+  --color-state-indicator: light-dark(var(--color-state-indicator-light), var(--color-state-indicator-dark));
+  --color-scrollbar-track: light-dark(var(--color-scrollbar-track-light), var(--color-scrollbar-track-dark));
+  --color-scrollbar-thumb: light-dark(var(--color-scrollbar-thumb-light), var(--color-scrollbar-thumb-dark));
+
+  /* Typography ----------------------------------------------------------- */
+  --font-family-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-family-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Task 08 Text Size. The user's chosen size is a multiplier on the
+     component typography tokens only: the root font size stays browser-owned so
+     OS text scale and page zoom keep working and never double-apply here. */
+  --font-scale: 1;
+
+  --font-size-xs: calc(0.8125rem * var(--font-scale));
+  --font-size-sm: calc(0.875rem * var(--font-scale));
+  --font-size-body: calc(1rem * var(--font-scale));
+  --font-size-lg: calc(1.125rem * var(--font-scale));
+  --font-size-xl: calc(1.375rem * var(--font-scale));
+  --font-size-2xl: calc(1.75rem * var(--font-scale));
+  --font-size-3xl: calc(2.25rem * var(--font-scale));
+  --font-size-preview-title: calc(0.9375rem * var(--font-scale));
+
+  --line-height-tight: 1.2;
+  --line-height-snug: 1.35;
+  --line-height-normal: 1.6;
+  --line-height-relaxed: 1.7;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --measure-prose: 80ch;
+
+  /* Spacing -------------------------------------------------------------- */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  /* Fixed shell dimensions (default 16px root: H=56, T=84, S=112) -------- */
+  --size-nav-item: 3.5rem;
+  --size-topbar: 5.25rem;
+  --size-drawer-first-row: 7rem;
+  --size-drawer-footer: var(--size-nav-item);
+
+  --size-icon-sm: 1.125rem;
+  --size-icon-md: 1.5rem;
+  --size-focus-ring: 3px;
+  --size-focus-offset: 2px;
+  --size-state-indicator: 0.1875rem;
+  --size-control-border: 1px;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+
+  /* Interactive target minimum: 24px fine pointer, 44px coarse pointer. */
+  --size-target-min: 1.5rem;
+
+  /* Layout ratios and gutters ------------------------------------------- */
+  --layout-sidebar-inline: 19.4%;
+  --layout-article-inline: 59%;
+  --layout-article-inline-narrow: 100%;
+  /* Wide-screen main/footer start offset: the 59% article container is centered
+     in the area to the right of the 19.4% drawer (center 59.7%). The desktop
+     closed state in shell.css resets this to a viewport-centered 50%. */
+  --layout-article-offset-inline: calc(50% + var(--layout-sidebar-inline) / 2 - var(--layout-article-inline) / 2);
+  --layout-article-padding-inline: 2rem;
+  --layout-article-padding-inline-narrow: 1rem;
+  --layout-article-padding-block-start: 2.5rem;
+  --layout-article-padding-block-end: 4rem;
+
+  /* Safe areas are indirected through custom properties so tests/callers can
+     substitute them without a notched device, while real devices read env(). */
+  --safe-inset-top: env(safe-area-inset-top, 0px);
+  --safe-inset-inline-start: env(safe-area-inset-left, 0px);
+  --safe-inset-inline-end: env(safe-area-inset-right, 0px);
+  --safe-inset-block-end: env(safe-area-inset-bottom, 0px);
+
+  --layout-topbar-offset: calc(var(--size-topbar) + var(--safe-inset-top));
+
+  /* Shared chrome positioning (task 03 must reuse these, not recalculate) */
+  --chrome-block-size: var(--size-nav-item);
+  --chrome-block-start: calc((var(--size-topbar) - var(--chrome-block-size)) / 2);
+  --chrome-inline-start: max(var(--space-3), var(--safe-inset-inline-start));
+  --chrome-inline-end: max(var(--space-3), var(--safe-inset-inline-end));
+  --chrome-gap: var(--space-2);
+  /* D24: the brand may use the whole top bar's remaining width instead of being
+     confined to the 19.4% sidebar column. */
+  --chrome-brand-max-inline: 100%;
+
+  /* Motion --------------------------------------------------------------- */
+  --motion-duration-fast: 120ms;
+  --motion-duration-base: 200ms;
+  --motion-duration-slow: 320ms;
+  --motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Stacking ------------------------------------------------------------- */
+  --z-drawer: 20;
+  --z-topbar: 30;
+  --z-skip-link: 40;
+  --z-popover: 50;
+}
+
+@media (pointer: coarse) {
+  :root {
+    --size-target-min: 2.75rem;
+  }
+}
+
+/* Explicit theme hooks: task 08 flips these attributes. Without an attribute
+   the page follows the operating-system preference. `light-dark()` resolves
+   against the computed `color-scheme`, so these two rules are the whole theme
+   override: native scrollbars, form controls and the canvas follow too. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Text Size (task 08): Default = no attribute, Small/Large = multiplier on the
+   component typography tokens. Nothing here touches `html`/`:root` font-size. */
+:root[data-text-size="small"] {
+  --font-scale: 0.875;
+}
+
+:root[data-text-size="large"] {
+  --font-scale: 1.125;
+}
+
+/* Fallback for browsers with color-scheme but without light-dark(). */
+@supports not (color: light-dark(#000000, #ffffff)) {
+  :root {
+    --color-page: var(--color-page-light);
+    --color-sidebar: var(--color-sidebar-light);
+    --color-popover: var(--color-popover-light);
+    --color-text: var(--color-text-light);
+    --color-text-secondary: var(--color-text-secondary-light);
+    --color-border: var(--color-border-light);
+    --color-control-border: var(--color-control-border-light);
+    --color-link: var(--color-link-light);
+    --color-link-hover: var(--color-link-hover-light);
+    --color-focus: var(--color-focus-light);
+    --color-state-overlay: var(--color-state-overlay-light);
+    --color-state-surface: var(--color-state-surface-light);
+    --color-state-indicator: var(--color-state-indicator-light);
+    --color-scrollbar-track: var(--color-scrollbar-track-light);
+    --color-scrollbar-thumb: var(--color-scrollbar-thumb-light);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-page: var(--color-page-dark);
+      --color-sidebar: var(--color-sidebar-dark);
+      --color-popover: var(--color-popover-dark);
+      --color-text: var(--color-text-dark);
+      --color-text-secondary: var(--color-text-secondary-dark);
+      --color-border: var(--color-border-dark);
+      --color-control-border: var(--color-control-border-dark);
+      --color-link: var(--color-link-dark);
+      --color-link-hover: var(--color-link-hover-dark);
+      --color-focus: var(--color-focus-dark);
+      --color-state-overlay: var(--color-state-overlay-dark);
+      --color-state-surface: var(--color-state-surface-dark);
+      --color-state-indicator: var(--color-state-indicator-dark);
+      --color-scrollbar-track: var(--color-scrollbar-track-dark);
+      --color-scrollbar-thumb: var(--color-scrollbar-thumb-dark);
+    }
+  }
+
+  /* Task 08: the explicit Theme setting must also work without light-dark().
+     The attribute selectors are more specific than `:root`, so an explicit
+     choice wins over the system media query above. */
+  :root[data-theme="light"] {
+    --color-page: var(--color-page-light);
+    --color-sidebar: var(--color-sidebar-light);
+    --color-popover: var(--color-popover-light);
+    --color-text: var(--color-text-light);
+    --color-text-secondary: var(--color-text-secondary-light);
+    --color-border: var(--color-border-light);
+    --color-control-border: var(--color-control-border-light);
+    --color-link: var(--color-link-light);
+    --color-link-hover: var(--color-link-hover-light);
+    --color-focus: var(--color-focus-light);
+    --color-state-overlay: var(--color-state-overlay-light);
+    --color-state-surface: var(--color-state-surface-light);
+    --color-state-indicator: var(--color-state-indicator-light);
+    --color-scrollbar-track: var(--color-scrollbar-track-light);
+    --color-scrollbar-thumb: var(--color-scrollbar-thumb-light);
+  }
+
+  :root[data-theme="dark"] {
+    --color-page: var(--color-page-dark);
+    --color-sidebar: var(--color-sidebar-dark);
+    --color-popover: var(--color-popover-dark);
+    --color-text: var(--color-text-dark);
+    --color-text-secondary: var(--color-text-secondary-dark);
+    --color-border: var(--color-border-dark);
+    --color-control-border: var(--color-control-border-dark);
+    --color-link: var(--color-link-dark);
+    --color-link-hover: var(--color-link-hover-dark);
+    --color-focus: var(--color-focus-dark);
+    --color-state-overlay: var(--color-state-overlay-dark);
+    --color-state-surface: var(--color-state-surface-dark);
+    --color-state-indicator: var(--color-state-indicator-dark);
+    --color-scrollbar-track: var(--color-scrollbar-track-dark);
+    --color-scrollbar-thumb: var(--color-scrollbar-thumb-dark);
+  }
+}
+
+/* Motion, system preference (task 08 keeps this as the default). */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-fast: 0ms;
+    --motion-duration-base: 0ms;
+    --motion-duration-slow: 0ms;
+  }
+}
+
+/* Reduced Motion setting, explicit states (task 08). System = no attribute.
+   `reduce` zeroes every motion duration; `full` is an explicit opt-in and must
+   also restore durations when the OS asks for reduced motion. "Full" never
+   re-enables flashing or uncontrolled movement: only the CSS transitions and
+   the user-triggered spatial effects below are restored. */
+:root[data-motion="reduce"] {
+  --motion-duration-fast: 0ms;
+  --motion-duration-base: 0ms;
+  --motion-duration-slow: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-motion="full"] {
+    --motion-duration-fast: 120ms;
+    --motion-duration-base: 200ms;
+    --motion-duration-slow: 320ms;
+  }
+}

@@ -1,0 +1,36 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getSiteData } from '../../lib/content';
+import '../../styles/blog.css';
+
+export async function getStaticPaths() {
+  const { posts } = await getSiteData();
+  // `segments` is the decoded form of the canonical content-model route: both
+  // are produced from one file-path parsing step in @selfpage/content-model.
+  // The loader rejects path characters whose Astro build URL would differ from
+  // the manifest href, so this never becomes a second, disagreeing route.
+  return posts.map((post) => ({
+    params: { slug: post.data.segments.join('/') },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+---
+
+<BaseLayout title={post.data.title} description={`Blog post: ${post.data.title}`}>
+  <article class="post" data-blog-post>
+    <h1>{post.data.title}</h1>
+    <p class="post-date">
+      <time datetime={post.data.time ? `${post.data.date}T${post.data.time}` : post.data.date}>
+        {post.data.displayDate ?? post.data.date}
+      </time>
+    </p>
+    <hr />
+    <div class="post__body">
+      <Content />
+    </div>
+  </article>
+</BaseLayout>

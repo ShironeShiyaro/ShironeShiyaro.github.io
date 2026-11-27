@@ -1,0 +1,17 @@
+---
+import type { ResumeEntryData } from '../../../lib/entry-types';
+
+interface Props {
+  /** One validated Home section from the content collection (manifest data). */
+  section: ResumeEntryData;
+}
+
+const { section } = Astro.props;
+---
+
+<section class="resume-section" aria-labelledby={section.id} data-resume-section>
+  <h2 id={section.id}>{section.title}</h2>
+  <div class="resume-section__body">
+    <slot />
+  </div>
+</section>

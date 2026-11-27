@@ -1,0 +1,605 @@
+/*
+ * SelfPage author editor.
+ *
+ * Follows the public site's tokens and article typography. The editing
+ * surfaces deliberately have no border, background, card or shadow: the title
+ * is an article H1 and the body is article prose whose source stays visible.
+ * Sizes are relative so OS text scaling and 200% zoom reflow; focus is the
+ * only visible box and it is an outline, not a text-field border.
+ */
+
+:root {
+  --color-danger: light-dark(#8a1c1c, #ffb4ab);
+  --color-danger-surface: light-dark(#fbeaea, #3a1d1d);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--color-text);
+  background-color: var(--color-page);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: var(--color-link);
+}
+
+a:hover {
+  color: var(--color-link-hover);
+}
+
+:where(a, button, select, [contenteditable], [tabindex]):focus-visible {
+  outline: var(--size-focus-ring) solid var(--color-focus);
+  outline-offset: var(--size-focus-offset);
+}
+
+.visually-hidden {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  inline-size: 1px !important;
+  block-size: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+.skip-link {
+  position: fixed;
+  inset-block-start: var(--space-2);
+  inset-inline-start: var(--space-2);
+  z-index: var(--z-skip-link);
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--size-target-min);
+  max-inline-size: calc(100% - 2 * var(--space-2));
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  background-color: var(--color-page);
+  border: var(--size-control-border) solid var(--color-control-border);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transform: translateY(calc(-100% - var(--space-6)));
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+/* Author-only top-bar slot: the public shell renders Menu + brand only, so
+ * Logout lives here instead of changing the public site's top bar (D30). */
+.shell-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  min-block-size: var(--chrome-block-size);
+  margin-inline-start: auto;
+}
+
+.shell-actions__button {
+  min-block-size: max(var(--size-target-min), 2rem);
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  background-color: transparent;
+  border: var(--size-control-border) solid var(--color-control-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.shell-actions__button:hover {
+  background-color: var(--color-state-surface);
+}
+
+/* Page ------------------------------------------------------------------- */
+/* The editor is laid out inside the shared `.site-main` article container, so
+ * the author page has the same 59% column, padding and fixed top bar as a
+ * public article; the prose keeps its own measure inside it. */
+.author-page {
+  max-inline-size: var(--measure-prose);
+  min-inline-size: 0;
+}
+
+.author-page:focus {
+  outline: none;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--size-target-min);
+  padding-inline: var(--space-1);
+  color: var(--color-link);
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--color-text-secondary);
+}
+
+/* Status / auth panel ---------------------------------------------------- */
+.status-panel {
+  margin-block: var(--space-8) var(--space-6);
+  padding-block: var(--space-5);
+  border-block: var(--size-control-border) solid var(--color-border);
+}
+
+.status-panel h2 {
+  margin-block: 0 var(--space-3);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+}
+
+.status-panel p {
+  max-inline-size: var(--measure-prose);
+  margin-block: 0 var(--space-3);
+  line-height: var(--line-height-relaxed);
+}
+
+/* Editor: no box, only article typography -------------------------------- */
+.post-editor {
+  margin-block: var(--space-8) 0;
+}
+
+.post-title {
+  margin-block: 0 var(--space-2);
+  color: var(--color-text);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+
+.post-title__input:empty::before,
+.post-body:empty::before {
+  color: var(--color-text-secondary);
+  pointer-events: none;
+  user-select: none;
+}
+
+.post-title__input:empty::before {
+  content: "Post title";
+}
+
+.post-body:empty::before {
+  content: "Write the post body in Markdown";
+}
+
+.post-title__input {
+  display: inline-block;
+  inline-size: 100%;
+  min-block-size: 1.2em;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+
+.post-date {
+  margin-block: 0 var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.post-editor hr {
+  margin-block: var(--space-5) var(--space-8);
+  border: 0;
+  border-block-start: var(--size-control-border) solid var(--color-border);
+}
+
+.post-body {
+  display: block;
+  min-block-size: 14rem;
+  color: var(--color-text);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-relaxed);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+
+/* Publish ---------------------------------------------------------------- */
+.publish-panel {
+  margin-block-start: var(--space-10);
+  padding-block-start: var(--space-6);
+  border-block-start: var(--size-control-border) solid var(--color-border);
+}
+
+.publish-panel h2 {
+  margin-block: 0 var(--space-3);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+}
+
+.publish-panel h3 {
+  margin-block: 0 var(--space-2);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+}
+
+.publish-panel p {
+  max-inline-size: var(--measure-prose);
+  margin-block: 0 var(--space-3);
+  line-height: var(--line-height-relaxed);
+}
+
+.publish-actions,
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-block: var(--space-3);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--size-target-min);
+  min-inline-size: var(--size-target-min);
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text);
+  background-color: transparent;
+  border: var(--size-control-border) solid var(--color-control-border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  line-height: var(--line-height-snug);
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: background-color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.button:hover:not(:disabled) {
+  background-color: var(--color-state-surface);
+}
+
+.button:disabled {
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+  cursor: not-allowed;
+}
+
+.button--primary {
+  border-color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.button--quiet {
+  padding-inline: var(--space-2);
+  border-color: transparent;
+}
+
+.button--danger {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.draft-status {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.field-errors,
+.publish-status {
+  margin-block: var(--space-5) 0;
+  padding: var(--space-4);
+  border: var(--size-control-border) solid var(--color-control-border);
+  border-radius: var(--radius-sm);
+}
+
+.publish-status-focus:focus {
+  outline: var(--size-focus-ring) solid var(--color-focus);
+  outline-offset: var(--size-focus-offset);
+}
+
+.field-errors {
+  color: var(--color-danger);
+  background-color: var(--color-danger-surface);
+  border-color: var(--color-danger);
+}
+
+.field-errors h3,
+.publish-status h3 {
+  margin-block: 0 var(--space-2);
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-snug);
+}
+
+.field-errors ul {
+  margin: 0;
+  padding-inline-start: var(--space-6);
+}
+
+.field-errors li {
+  margin-block-end: var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+.field-error {
+  color: var(--color-danger);
+  overflow-wrap: anywhere;
+}
+
+.publish-status code {
+  font-family: var(--font-family-mono);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+
+/* Delete-draft confirmation (task 08: modal semantics + inert background).
+ * The dialog stays a child of the publish panel in the DOM (the existing Tab
+ * trap and tests rely on its ids), while these rules make it a viewport-level
+ * alert dialog above a dim layer. */
+.confirm-layer {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-popover) + 10);
+  background-color: rgb(0 0 0 / 0.45);
+}
+
+.confirm-panel {
+  position: fixed;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  z-index: calc(var(--z-popover) + 11);
+  inline-size: min(28rem, calc(100vw - 2 * var(--space-4)));
+  max-block-size: calc(100dvh - 2 * var(--space-4));
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-5);
+  color: var(--color-text);
+  background-color: var(--color-page);
+  border: 2px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.25);
+  transform: translate(-50%, -50%);
+}
+
+.confirm-panel h3 {
+  margin-block: 0 var(--space-2);
+  font-size: var(--font-size-lg);
+}
+
+.confirm-panel p {
+  margin-block: 0 var(--space-3);
+  line-height: var(--line-height-relaxed);
+  overflow-wrap: anywhere;
+}
+
+.confirm-panel .button-row {
+  margin-block: var(--space-3) 0;
+}
+
+@media (forced-colors: active) {
+  .confirm-panel {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+}
+
+/* Preview ---------------------------------------------------------------- */
+.preview-controls {
+  margin-block-start: var(--space-5);
+}
+
+.preview {
+  margin-block-start: var(--space-4);
+  padding-block-start: var(--space-4);
+  border-block-start: var(--size-control-border) solid var(--color-border);
+}
+
+.preview h3 {
+  margin-block: 0 var(--space-3);
+  font-size: var(--font-size-lg);
+}
+
+.preview-body {
+  max-inline-size: var(--measure-prose);
+  overflow-wrap: break-word;
+}
+
+.preview-body h2 {
+  margin-block: var(--space-8) var(--space-3);
+  font-size: var(--font-size-2xl);
+  line-height: var(--line-height-tight);
+}
+
+.preview-body h3 {
+  margin-block: var(--space-6) var(--space-2);
+  font-size: var(--font-size-xl);
+  line-height: var(--line-height-snug);
+}
+
+.preview-body h4,
+.preview-body h5,
+.preview-body h6 {
+  margin-block: var(--space-5) var(--space-2);
+  font-size: var(--font-size-lg);
+}
+
+.preview-body p,
+.preview-body li {
+  line-height: var(--line-height-relaxed);
+}
+
+.preview-body ul,
+.preview-body ol {
+  margin-block: 0 var(--space-4);
+  padding-inline-start: var(--space-6);
+}
+
+.preview-body blockquote {
+  margin-inline: 0;
+  padding-inline-start: var(--space-4);
+  color: var(--color-text-secondary);
+  border-inline-start: var(--size-state-indicator) solid var(--color-border);
+}
+
+.preview-body pre {
+  max-inline-size: 100%;
+  margin-block: 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  background-color: var(--color-sidebar);
+  border: var(--size-control-border) solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.preview-body code {
+  font-family: var(--font-family-mono);
+  font-size: 0.9em;
+}
+
+.preview-body pre code {
+  overflow-wrap: normal;
+}
+
+.preview-body img {
+  max-inline-size: 100%;
+}
+
+.preview-body hr {
+  margin-block: var(--space-6);
+  border: 0;
+  border-block-start: var(--size-control-border) solid var(--color-border);
+}
+
+/* Test-only mock controls ------------------------------------------------ */
+.mock-controls {
+  margin-block-start: var(--space-8);
+  padding-block-start: var(--space-4);
+  border-block-start: var(--size-control-border) dashed var(--color-control-border);
+}
+
+.mock-controls summary {
+  min-block-size: var(--size-target-min);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+}
+
+.mock-controls__grid {
+  display: grid;
+  gap: var(--space-4);
+  margin-block: var(--space-4);
+}
+
+.mock-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-inline-size: 28rem;
+}
+
+.mock-field > span {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.mock-field select {
+  min-block-size: var(--size-target-min);
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text);
+  background-color: var(--color-page);
+  border: var(--size-control-border) solid var(--color-control-border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+/* Success page (D32) ------------------------------------------------------ */
+
+.success-page .post-title {
+  margin-block-end: var(--space-2);
+}
+
+.success-page .deployment-check {
+  margin-block: var(--space-5) 0;
+  padding-block-start: var(--space-4);
+  border-block-start: var(--size-control-border) solid var(--color-border);
+}
+
+.success-page .deployment-check h2 {
+  margin-block: 0 var(--space-3);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+}
+
+.success-page .button-row .button {
+  text-decoration: none;
+}
+
+/* Leave confirmation (D33) ------------------------------------------------ */
+
+.leave-layer {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-popover) + 10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background-color: rgb(0 0 0 / 0.45);
+}
+
+.leave-dialog {
+  inline-size: min(28rem, 100%);
+  max-block-size: calc(100dvh - 2 * var(--space-4));
+  overflow-y: auto;
+  padding: var(--space-5);
+  color: var(--color-text);
+  background-color: var(--color-page);
+  border: var(--size-control-border) solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.25);
+}
+
+.leave-dialog h2 {
+  margin-block: 0 var(--space-4);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  overflow-wrap: anywhere;
+}
+
+.leave-dialog .button-row {
+  margin-block: var(--space-3) 0;
+}
+
+@media (max-width: 30em) {
+  .author-page {
+    max-inline-size: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Task 08: an explicit Full choice restores the token-driven transitions
+     even under an OS reduced-motion setting; System/Reduce stay instant. */
+  :root:not([data-motion="full"]) .button {
+    transition: none;
+  }
+}

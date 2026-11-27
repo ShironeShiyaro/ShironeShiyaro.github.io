@@ -1,0 +1,132 @@
+/* SelfPage base layer: reset, document canvas, links, focus, utilities.
+ * No author font-size is set on :root/html; the browser owns the root size so
+ * OS text scale, 200% text and task 08 Text Size can work without double
+ * scaling. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* The fixed top bar is pinned to the viewport, so anchors and programmatic
+   * focus need explicit clearance. The value is dynamic: it tracks T and the
+   * safe-area inset through tokens. */
+  scroll-padding-block-start: calc(var(--layout-topbar-offset) + var(--space-4));
+  scroll-padding-block-end: var(--space-8);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Task 08 explicit Reduced Motion states: Full restores smooth fragment
+ * scrolling even when the OS asks for reduced motion; Reduce always scrolls
+ * instantly. Both are attribute rules so the system default still follows the
+ * media query with no JavaScript. */
+:root[data-motion="full"] {
+  scroll-behavior: smooth;
+}
+
+:root[data-motion="reduce"] {
+  scroll-behavior: auto;
+}
+
+body {
+  margin: 0;
+  min-block-size: 100dvh;
+  color: var(--color-text);
+  background-color: var(--color-page);
+  font-family: var(--font-family-sans);
+  /* Task 08 Text Size: the body reads the component typography token, so
+     Default/Small/Large change prose too. This is NOT the root font size: the
+     browser still owns `html`, so OS text scale and page zoom keep working and
+     never double-apply. */
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-normal);
+  overflow-wrap: break-word;
+}
+
+img,
+video,
+canvas {
+  max-inline-size: 100%;
+  block-size: auto;
+}
+
+a {
+  color: var(--color-link);
+  text-decoration: underline;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  color: var(--color-link-hover);
+}
+
+/* One visible focus treatment for every interactive control. Outline is used
+ * (not box-shadow) so it survives forced-colors mode. */
+:where(a, button, input, select, textarea, summary, [role="button"]):focus-visible {
+  outline: var(--size-focus-ring) solid var(--color-focus);
+  outline-offset: var(--size-focus-offset);
+}
+
+/* The skip-link target is programmatically focusable but is not a control; a
+ * giant outline around the whole article would be noise. The skip link itself
+ * shows a focus ring before activation. */
+main:focus,
+main:focus-visible {
+  outline: none;
+}
+
+@media (forced-colors: active) {
+  :where(a, button, input, select, textarea, summary, [role="button"]):focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+.skip-link {
+  position: fixed;
+  inset-block-start: var(--space-2);
+  inset-inline-start: var(--space-2);
+  z-index: var(--z-skip-link);
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--size-target-min);
+  max-inline-size: calc(100% - 2 * var(--space-2));
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  background-color: var(--color-page);
+  border: var(--size-control-border) solid var(--color-control-border);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transform: translateY(calc(-100% - var(--space-6)));
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.visually-hidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  inline-size: 1px !important;
+  block-size: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+::selection {
+  color: var(--color-page);
+  background-color: color-mix(in oklab, var(--color-text) 80%, var(--color-page));
+}

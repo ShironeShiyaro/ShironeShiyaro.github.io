@@ -1,0 +1,37 @@
+---
+interface Props {
+  siteTitle: string;
+  homeHref: string;
+  controlsId: string;
+  drawerOpen?: boolean;
+}
+
+const { siteTitle, homeHref, controlsId, drawerOpen = true } = Astro.props;
+---
+
+<header class="top-bar" data-layout="top-bar" data-size="topbar">
+  <div class="top-bar__chrome">
+    <button
+      type="button"
+      class="menu-trigger"
+      data-size="nav-item"
+      data-drawer-toggle
+      aria-controls={controlsId}
+      aria-expanded={drawerOpen ? 'true' : 'false'}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path d="M4 7h16M4 12h16M4 17h16"></path>
+      </svg>
+      <span class="visually-hidden">Menu</span>
+    </button>
+    <a class="site-brand" href={homeHref}>{siteTitle}</a>
+  </div>
+</header>

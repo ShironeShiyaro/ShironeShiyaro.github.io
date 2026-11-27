@@ -1,0 +1,28 @@
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+
+# Node
+node_modules/
+npm-debug.log*
+*.tsbuildinfo
+
+# Build output
+dist/
+.astro/
+.wrangler/
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+*.pem
+
+# Temporary
+_tmp/

@@ -1,0 +1,84 @@
+---
+import { getSiteData } from '../lib/content';
+import SiteShell from '../components/layout/SiteShell.astro';
+import { resolveNavigationState } from '@selfpage/site-shell/nav-model';
+import {
+  DEFAULT_PREFERENCES,
+  PREFERENCE_BOOT_SCRIPT,
+  preferenceMetaColorScheme,
+} from '@selfpage/site-shell/preferences';
+import '@selfpage/design-tokens/tokens.css';
+import '@selfpage/site-shell/shell.css';
+import '../styles/base.css';
+import '../styles/content.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'The homepage of Xinyang Zeng.' } = Astro.props;
+const siteTitle = "Xinyang Zeng's Homepage";
+const documentTitle = title === siteTitle ? title : `${title} | ${siteTitle}`;
+const { manifest } = await getSiteData();
+const current = resolveNavigationState(manifest, Astro.url.pathname);
+
+// With JavaScript enabled the inline boot script in SiteShell applies the
+// per-tab stored drawer state before first paint (absent/unreadable = closed).
+// Without JavaScript the server-rendered open state keeps the navigation visible.
+const drawerOpen = true;
+
+// Task 08 (review P2-6): the static meta default and the boot script are both
+// generated from the same preference constants, so the no-JS/System default
+// cannot drift from the runtime model.
+const defaultColorScheme = preferenceMetaColorScheme(DEFAULT_PREFERENCES.theme);
+
+const year = new Date().getFullYear();
+---
+
+<!doctype html>
+<html lang="en" data-drawer-open={drawerOpen ? 'true' : 'false'} data-nav-page={current.page}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content={defaultColorScheme} />
+    <meta name="text-scale" content="scale" />
+    <!-- Task 08: apply the stored Theme / Reduced Motion / Text Size choices
+         before anything paints a background. The script is inline and
+         synchronous on purpose (no `defer`/module/await), generated from
+         packages/site-shell/src/preferences.ts so its keys and allowed values
+         cannot drift from the runtime module. It only sets root data-* hooks
+         and the color-scheme meta; a throwing/blocked localStorage is caught so
+         first paint always succeeds. Without JavaScript, the page stays on
+         System / System / Default and the static meta already matches. -->
+    <script is:inline set:html={PREFERENCE_BOOT_SCRIPT}></script>
+    <meta name="description" content={description} />
+    <!-- Placeholder brand icon (task 07.5, D25). Replace public/favicon.svg and
+         public/favicon.ico with the real artwork later; both are local files and
+         never an external CDN. `sizes="any"` keeps /favicon.ico as the fallback
+         for legacy bookmarks and crawler requests. -->
+    <link rel="icon" href={`${import.meta.env.BASE_URL}favicon.svg`} type="image/svg+xml" />
+    <link rel="icon" href={`${import.meta.env.BASE_URL}favicon.ico`} sizes="any" />
+    <title>{documentTitle}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to main content</a>
+    <SiteShell
+      siteTitle={siteTitle}
+      homeHref={manifest.home.href}
+      manifest={manifest}
+      current={current}
+      drawerOpen={drawerOpen}
+    >
+      <slot />
+    </SiteShell>
+    <footer class="site-footer">
+      <p>© {year} Xinyang Zeng</p>
+    </footer>
+    <script>
+      // Runtime preference wiring: cross-tab `storage` sync, bfcache
+      // re-adoption and the non-sensitive preference fragment on the New! link.
+      import '../lib/preferences-boot';
+    </script>
+  </body>
+</html>

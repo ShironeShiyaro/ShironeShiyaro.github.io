@@ -1,0 +1,12 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getSiteData } from '../lib/content';
+
+const { manifest } = await getSiteData();
+---
+
+<BaseLayout title="Page not found">
+  <h1>Page not found</h1>
+  <p>The page you requested does not exist on this site.</p>
+  <p><a href={manifest.home.href}>Go to the Home page</a></p>
+</BaseLayout>

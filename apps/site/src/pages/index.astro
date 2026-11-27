@@ -1,0 +1,41 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ResumeSection from '../components/content/home/ResumeSection.astro';
+import { getSiteData } from '../lib/content';
+import '../styles/home.css';
+
+const { manifest, resume } = await getSiteData();
+const sections = await Promise.all(
+  resume.map(async (entry) => {
+    const { Content } = await render(entry);
+    return { entry, Content };
+  }),
+);
+---
+
+<BaseLayout title={manifest.home.title}>
+  <article class="home" aria-labelledby="home-title">
+    <h1 id="home-title" class="home__title">{manifest.home.title}</h1>
+    <div class="home__sections">
+      {
+        sections.map(({ entry, Content }) => (
+          <ResumeSection section={entry.data}>
+            <Content />
+          </ResumeSection>
+        ))
+      }
+    </div>
+  </article>
+</BaseLayout>
+
+<script>
+  // Make every fragment target programmatically focusable without adding any
+  // attribute to the static heading markup. Task 01's build check asserts the
+  // exact `<h2 id="...">` shape, and native fragment navigation focuses a
+  // focusable target, so keyboard activation lands on the section heading and
+  // the next Tab continues inside that section.
+  for (const heading of document.querySelectorAll<HTMLElement>('.resume-section h2')) {
+    heading.setAttribute('tabindex', '-1');
+  }
+</script>

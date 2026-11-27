@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" data-nav-page="author">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="%PREFERENCE_META_COLOR_SCHEME%" />
+    <meta name="text-scale" content="scale" />
+    <meta name="description" content="Write a new Blog post for Xinyang Zeng's Homepage." />
+    <!-- Same placeholder icons as the public site (P2-1): /favicon.ico must not
+         fall through to the SPA index.html (which returns text/html). -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <title>New post — Xinyang Zeng's Homepage</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- The boot state is applied by the external bundle (src/boot.ts, imported
+         first by src/main.tsx): the Worker CSP allows only `script-src 'self'`,
+         so there is deliberately no inline script here (review P1-1). -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

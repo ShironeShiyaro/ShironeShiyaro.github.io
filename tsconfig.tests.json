@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node"]
+  },
+  "include": [
+    "tests/e2e/**/*.ts",
+    "tests/author-e2e/**/*.ts",
+    "playwright.config.ts",
+    "playwright.author.config.ts",
+    "playwright.github.config.ts",
+    "vitest.config.ts"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "selfpage-author",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-24",
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api", "/api/*", "/auth", "/auth/*", "/", "/index.html", "/new", "/new/*"]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AUTHOR_STORE",
+        "class_name": "AuthorStore"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["AuthorStore"]
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "invocation_logs": false
+    }
+  }
+}

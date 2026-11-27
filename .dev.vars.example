@@ -1,0 +1,134 @@
+# SelfPage environment template — variable NAMES and rules only.
+#
+# This file is documentation-by-example. It is never loaded by the build or by
+# Wrangler (Wrangler reads `.dev.vars`, `.env`, `.env.<mode>`, which are all
+# gitignored). Real values go only into:
+#
+#   * a local gitignored `.dev.vars` at the repository root, read by
+#     `wrangler dev --env-file ../../.dev.vars` (see package.json
+#     `dev:author:github`), and
+#   * the Cloudflare Worker via `wrangler secret put <NAME>` for the private
+#     values below, and
+#   * GitHub repository VARIABLES (Settings → Secrets and variables → Actions →
+#     Variables) for the three public build values used by
+#     `.github/workflows/pages.yml` (SITE_URL, BASE_PATH, PUBLIC_AUTHOR_ORIGIN).
+#     PUBLIC_SITE_ORIGIN is NOT one of them: only the author build reads it.
+#
+# Scope note (P2-2): this root template lists 19 names —
+#   * 3 public values read by the SITE build / Pages variables,
+#   * 11 Worker-private values,
+#   * 1 public value that belongs to the AUTHOR build and therefore does NOT
+#     belong in a root .dev.vars at all (PUBLIC_SITE_ORIGIN, section 1b), and
+#   * 4 test-only seams.
+# The older `apps/author/.dev.vars.example` is a SUBSET: it lists only the 11
+# Worker-private names that a local `.dev.vars` needs for `wrangler dev
+# --env-file`. It has neither the public build values nor the test-only seams;
+# this file is the canonical list.
+#
+# The workflows in this repository read NO repository secret at all: the public
+# site build needs only public values, and the author Worker is deployed by the
+# user from their own machine (docs/部署指南.md §6).
+#
+# Never put a real value in this file, in a commit, in a URL, in a log line, in
+# a screenshot, in an Actions log or in a chat message.
+#
+# ---------------------------------------------------------------------------
+# 1. PUBLIC build-time values read by the SITE build and the Pages workflow
+# ---------------------------------------------------------------------------
+# Public data: they end up in HTML, so treat them as public. In CI these three
+# are GitHub repository VARIABLES (Settings → Secrets and variables → Actions →
+# Variables), never secrets.
+
+# Canonical origin of the public site. User site: https://<user>.github.io/
+# Project site: the same origin, while BASE_PATH carries the sub-path.
+SITE_URL=https://<username>.github.io/
+
+# `/` (default, user site) or `/repo-name/` (project site). Must match the
+# Pages site type; `.github/workflows/pages.yml` fails the deploy when it does not.
+BASE_PATH=/
+
+# Origin of the deployed author Worker. Baked into the New! link
+# (`manifest.blog.newHref`) as `<PUBLIC_AUTHOR_ORIGIN>/new/`.
+# Production: https://<worker>.<account>.workers.dev/
+# Local dev default: http://localhost:8787/ (see npm run dev:author:github)
+PUBLIC_AUTHOR_ORIGIN=https://selfpage-author.<account>.workers.dev/
+
+# ---------------------------------------------------------------------------
+# 1b. PUBLIC_SITE_ORIGIN — NOT a root .dev.vars value (read this before filling)
+# ---------------------------------------------------------------------------
+# `PUBLIC_SITE_ORIGIN` is read by the AUTHOR build only (Vite, apps/author), and
+# the author shell bakes it into "Back to Blog" and the left navigation.
+#
+# Where it must be set (pick one):
+#   * the shell for the deploy command:  $env:PUBLIC_SITE_ORIGIN='https://<user>.github.io/'
+#   * or apps/author/.env.local          (gitignored; Vite reads .env / .env.local /
+#                                         .env.production / .env.production.local)
+#
+# Where it has NO effect: a line in THIS repository-root .dev.vars. That file is
+# read only by Wrangler (`wrangler dev --env-file ../../.dev.vars`), i.e. at
+# Worker runtime, not by Vite at build time.
+#
+# `npm run deploy:author` checks this before building and REFUSES to deploy when
+# the value is missing, is not https, or points at localhost/127.0.0.1 — see
+# tests/check-author-build-env.mjs and docs/部署指南.md §6.3.
+#
+#   PUBLIC_SITE_ORIGIN=https://<username>.github.io/     <-- put it in the shell / apps/author/.env, NOT here
+
+# ---------------------------------------------------------------------------
+# 2. TEST-ONLY seams — must be ABSENT from a production deployment
+# ---------------------------------------------------------------------------
+
+# Enables the task-06 mock surface and the fixed test clock. A production
+# Worker must leave it unset: `npm run check:worker` fails if APP_ENV appears in
+# apps/author/wrangler.jsonc at all.
+#APP_ENV=test
+
+# Redirect the Worker to a local mock GitHub. Honoured only when APP_ENV=test,
+# and only for 127.0.0.1/localhost origins.
+#GITHUB_API_BASE=http://127.0.0.1:43261
+#GITHUB_OAUTH_BASE=http://127.0.0.1:43261
+
+# Read another content root at build/test time (absolute path; not a deployment
+# setting, and never inside a committed value).
+#SELF_PAGE_CONTENT_ROOT=<absolute-path-to-a-content-directory>
+
+# ---------------------------------------------------------------------------
+# 3. WORKER PRIVATE values — Cloudflare secrets only
+# ---------------------------------------------------------------------------
+# Every value below goes to `wrangler secret put <NAME>` for the deployed
+# Worker, and to the local gitignored `.dev.vars` for local runs. GitHub
+# Actions never sees them.
+#
+# Production and test must use DIFFERENT GitHub Apps and DIFFERENT values:
+#   production App -> installed only on the real repository
+#   test App       -> installed only on the throwaway test repository
+# Mixing them is what makes a "test" publish write to the real site.
+
+# Numeric GitHub App id (App settings page) — not the client id.
+GITHUB_APP_ID=<numeric-app-id>
+
+# App settings page -> "Client ID" (public identifier, still not committed).
+GITHUB_APP_CLIENT_ID=<client-id>
+
+# App settings page -> "Generate a new client secret". Server-side only; the
+# browser never receives it. Rotating it logs the old one out of use immediately.
+GITHUB_APP_CLIENT_SECRET=<client-secret>
+
+# Immutable numeric ids used as the allowlist. Names/logins can be renamed.
+#   user id: GET https://api.github.com/users/<login>   -> .id
+#   repo id: GET https://api.github.com/repos/<owner>/<repo> -> .id
+GITHUB_ALLOWED_USER_ID=<numeric-user-id>
+GITHUB_ALLOWED_REPO_ID=<numeric-repository-id>
+
+# Fixed publish target. The Worker accepts no path from the browser.
+GITHUB_REPO_OWNER=<owner-login>
+GITHUB_REPO_NAME=<repository-name>
+GITHUB_REPO_BRANCH=main
+GITHUB_CONTENT_ROOT=content/blog
+
+# Random 32+ byte values, server-side only. Generate locally, e.g.
+#   openssl rand -base64 32
+# TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes (base64/base64url/hex)
+# or be at least 32 bytes of random text.
+SESSION_SECRET=<random-32-plus-character-secret>
+TOKEN_ENCRYPTION_KEY=<base64-encoded-32-byte-key>

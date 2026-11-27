@@ -1,0 +1,133 @@
+/* Blog index and article presentation.
+ *
+ * Scope: only the two Blog pages that import this file. Layout, typography
+ * tokens and the fixed top bar live in the task 02 shell/content layers; the
+ * navigation year expander and preview cards live in task 03's navigation.css.
+ *
+ * The date is a single unbreakable token: wrapping "2026-11-20" into fragments
+ * would make the archive unreadable at 320px/200% text. Titles, by contrast,
+ * wrap freely so the directory always exposes the full title (B09).
+ */
+
+.blog-index {
+  max-inline-size: var(--measure-prose);
+  /* Keep a little breathing room below the last year; on short desktop
+   * viewports this also lets the first year cross the scrollspy line before
+   * the page hits the bottom. */
+  padding-block-end: var(--space-8);
+}
+
+.blog-index__title {
+  margin-block-end: var(--space-6);
+}
+
+/* The outer group classes are deliberately distinct from the task 02 legacy
+ * `.blog-year`/`.blog-month` rules in content.css, which would otherwise
+ * re-size inherited article text. */
+.blog-year-group + .blog-year-group {
+  margin-block-start: var(--space-12);
+}
+
+.blog-year__title {
+  margin-block: 0 var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Year headings receive focus when a year link scrolls to #year-YYYY. The
+ * global focus ring only targets controls, so draw one here too. */
+.blog-year__title:focus-visible {
+  outline: var(--size-focus-ring) solid var(--color-focus);
+  outline-offset: var(--size-focus-offset);
+}
+
+.blog-month-group + .blog-month-group {
+  margin-block-start: var(--space-6);
+}
+
+.blog-month__title {
+  margin-block: 0 var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+.blog-post-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blog-post-list__item + .blog-post-list__item {
+  border-block-start: var(--size-control-border) solid var(--color-border);
+}
+
+.blog-post {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  min-block-size: max(2.75rem, var(--size-target-min));
+  padding-block: var(--space-2);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.blog-post__title {
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.blog-post__date {
+  flex: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.blog-post:hover .blog-post__title {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+/* Article body ----------------------------------------------------------- */
+
+.post__body > :first-child {
+  margin-block-start: 0;
+}
+
+/* Markdown tables are author content; let cells wrap instead of pushing the
+ * page sideways at 320px. */
+.post__body table {
+  max-inline-size: 100%;
+  margin-block: 0 var(--space-4);
+  border-collapse: collapse;
+}
+
+.post__body th,
+.post__body td {
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  border: var(--size-control-border) solid var(--color-border);
+}
+
+.post__body th {
+  font-weight: var(--font-weight-semibold);
+}
+
+.post__body img {
+  block-size: auto;
+  margin-block: var(--space-2);
+}
+
+/* Shiki keeps its own github-dark background inline; this only softens the
+ * corners to match the rest of the article. */
+.post__body pre {
+  border-radius: var(--radius-sm);
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@selfpage/author",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Same-origin author application shell and Worker BFF scaffold",
+  "scripts": {
+    "dev": "vite build && wrangler dev --port 8787 --var APP_ENV:test",
+    "build": "vite build && wrangler deploy --dry-run --outdir dist/worker",
+    "check": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@selfpage/design-tokens": "0.1.0",
+    "@selfpage/markdown": "0.1.0",
+    "@selfpage/site-shell": "0.1.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@selfpage/content-model": "0.1.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "vite": "^8.3.8"
+  }
+}

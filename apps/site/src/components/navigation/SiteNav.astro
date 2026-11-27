@@ -1,0 +1,184 @@
+---
+import type { NavigationManifest } from '@selfpage/content-model';
+import { navPreviewId, navYearListId, type NavigationState } from '@selfpage/site-shell/nav-model';
+
+interface Props {
+  manifest: NavigationManifest;
+  current: NavigationState;
+}
+
+const { manifest, current } = Astro.props;
+
+const isHome = current.page === 'home';
+const isPublications = current.page === 'publications';
+const isBlogIndex = current.page === 'blog';
+const isBlogPost = current.page === 'blog-post';
+const isBlog = current.key === 'blog';
+const currentYear = current.post?.year;
+
+/** Current leaf: background + indicator + weight. Ancestors: background + weight. */
+function itemClass(options: { current?: boolean; ancestor?: boolean; extra?: string[] }): string[] {
+  return [
+    'site-nav__item',
+    ...(options.extra ?? []),
+    ...(options.current ? ['is-current'] : []),
+    ...(options.ancestor ? ['is-current-ancestor'] : []),
+  ];
+}
+---
+
+<nav class="site-nav" aria-label="Site" data-navigation>
+  <ul class="site-nav__list" role="list">
+    <li class:list={itemClass({ current: isHome, extra: ['site-nav__group'] })} data-nav-item data-nav-group="home">
+      <a
+        class="site-nav__link site-nav__link--level-1"
+        data-nav-link
+        data-size="nav-item"
+        data-nav-key="home"
+        href={manifest.home.href}
+        aria-current={isHome ? 'page' : undefined}
+      >
+        <span class="site-nav__label">{manifest.home.title}</span>
+      </a>
+      {
+        isHome && manifest.home.children.length > 0 && (
+          <ul class="site-nav__sublist" role="list" aria-label="Home sections">
+            {manifest.home.children.map((section) => (
+              <li class="site-nav__item site-nav__item--level-2" data-nav-item>
+                <a
+                  class="site-nav__link site-nav__link--level-2"
+                  data-nav-link
+                  data-size="nav-item"
+                  data-scrollspy-target
+                  data-spy-target={section.id}
+                  data-current-kind="location"
+                  href={section.href}
+                >
+                  <span class="site-nav__label">{section.title}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </li>
+
+    <li
+      class:list={itemClass({ current: isPublications, extra: ['site-nav__group'] })}
+      data-nav-item
+      data-nav-group="publications"
+    >
+      <a
+        class="site-nav__link site-nav__link--level-1"
+        data-nav-link
+        data-size="nav-item"
+        data-nav-key="publications"
+        href={manifest.publications.href}
+        aria-current={isPublications ? 'page' : undefined}
+      >
+        <span class="site-nav__label">{manifest.publications.title}</span>
+      </a>
+    </li>
+
+    <li
+      class:list={itemClass({
+        current: isBlogIndex,
+        ancestor: isBlogPost,
+        extra: ['site-nav__group'],
+      })}
+      data-nav-item
+      data-nav-group="blog"
+    >
+      <a
+        class="site-nav__link site-nav__link--level-1"
+        data-nav-link
+        data-size="nav-item"
+        data-nav-key="blog"
+        href={manifest.blog.href}
+        aria-current={isBlogIndex ? 'page' : undefined}
+      >
+        <span class="site-nav__label">{manifest.blog.title}</span>
+      </a>
+      {
+        isBlog && (
+          <ul class="site-nav__sublist" role="list" aria-label="Blog">
+            <li class="site-nav__item site-nav__item--level-2" data-nav-item>
+              <a
+                class="site-nav__link site-nav__link--level-2"
+                data-nav-link
+                data-size="nav-item"
+                data-new-href={manifest.blog.newHref}
+                href={manifest.blog.newHref}
+              >
+                <span class="site-nav__label">New!</span>
+                <span class="visually-hidden"> (author tools)</span>
+              </a>
+            </li>
+            {manifest.blog.years.map((year) => {
+              const isCurrentYear = isBlogPost && currentYear === year.year;
+              return (
+                <li
+                  class:list={itemClass({
+                    ancestor: isCurrentYear,
+                    extra: ['site-nav__item--level-2', 'site-nav__item--year'],
+                  })}
+                  data-nav-item
+                  data-nav-year={year.year}
+                >
+                  <a
+                    class="site-nav__link site-nav__link--level-2 site-nav__year-toggle"
+                    data-nav-link
+                    data-size="nav-item"
+                    data-year-toggle
+                    data-year={year.year}
+                    data-scrollspy-target
+                    data-spy-target={`year-${year.year}`}
+                    data-current-kind="location"
+                    aria-expanded={isCurrentYear ? 'true' : 'false'}
+                    aria-controls={navYearListId(year.year)}
+                    href={year.href}
+                  >
+                    <span class="site-nav__label">{year.year}</span>
+                  </a>
+                  <ul
+                    id={navYearListId(year.year)}
+                    class="site-nav__sublist site-nav__sublist--posts"
+                    role="list"
+                    aria-label={`${year.year} posts`}
+                    hidden={!isCurrentYear}
+                  >
+                    {year.posts.map((post, index) => {
+                      const isCurrentPost = isCurrentYear && current.post?.href === post.href;
+                      return (
+                        <li
+                          class:list={itemClass({
+                            current: isCurrentPost,
+                            extra: ['site-nav__item--level-3'],
+                          })}
+                          data-nav-item
+                        >
+                          <a
+                            class="site-nav__link site-nav__link--level-3 site-nav__post-link"
+                            data-nav-link
+                            data-size="nav-item"
+                            data-preview-target={navPreviewId(year.year, index)}
+                            href={post.href}
+                            aria-current={isCurrentPost ? 'page' : undefined}
+                          >
+                            <span class="site-nav__post-label" data-post-label>
+                              <span class="site-nav__post-text">{`${post.title}-${post.displayShortDate ?? post.shortDate}`}</span>
+                            </span>
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </li>
+              );
+            })}
+          </ul>
+        )
+      }
+    </li>
+  </ul>
+</nav>

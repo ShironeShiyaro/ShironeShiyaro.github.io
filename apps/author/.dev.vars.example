@@ -1,0 +1,26 @@
+# Task 07 local development placeholders (Wrangler `.dev.vars` format).
+#
+# Copy the real values only into a local `.dev.vars` file; never commit them and
+# never put them in a URL, log, report, chat message or browser bundle.
+# For a deployed Worker use `wrangler secret put <NAME>` for every value below.
+
+# GitHub App (dedicated test App for local/real-E2E; production App stays
+# installed only on the production repository).
+GITHUB_APP_CLIENT_ID=replace-with-the-github-app-client-id
+GITHUB_APP_CLIENT_SECRET=replace-with-the-github-app-client-secret
+GITHUB_APP_ID=replace-with-the-numeric-github-app-id
+
+# Numeric allowlists (not names, not logins).
+GITHUB_ALLOWED_USER_ID=replace-with-the-numeric-author-user-id
+GITHUB_ALLOWED_REPO_ID=replace-with-the-numeric-target-repository-id
+
+# Fixed target and branch. The content root must stay content/blog.
+GITHUB_REPO_OWNER=replace-with-the-repository-owner-login
+GITHUB_REPO_NAME=replace-with-the-repository-name
+GITHUB_REPO_BRANCH=main
+GITHUB_CONTENT_ROOT=content/blog
+
+# Random 32+ byte values (base64url/hex/base64 for the encryption key, which
+# must decode to exactly 32 bytes). Generate with `openssl rand -base64 32`.
+SESSION_SECRET=replace-with-a-random-32-plus-character-session-secret
+TOKEN_ENCRYPTION_KEY=replace-with-a-base64-encoded-32-byte-key

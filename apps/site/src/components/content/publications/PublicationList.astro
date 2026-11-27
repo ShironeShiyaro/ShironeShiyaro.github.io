@@ -1,0 +1,154 @@
+---
+import type { PublicationItem } from '@selfpage/content-model';
+
+interface Props {
+  items: PublicationItem[];
+}
+
+const { items } = Astro.props;
+
+/** Absolute http(s) links are opened in a new tab with a safe rel. */
+function isExternalHref(href: string): boolean {
+  return /^https?:\/\//i.test(href);
+}
+---
+
+<ol class="publication-list">
+  {
+    items.map((item) => {
+      const externalPaper = item.paperHref !== undefined && isExternalHref(item.paperHref);
+      const externalCode = item.codeHref !== undefined && isExternalHref(item.codeHref);
+      return (
+        <li class="publication">
+          <p class="publication__meta">
+            <span class="publication__venue">{item.venue}</span>
+            <span class="publication__year">{item.year}</span>
+          </p>
+          <h3 class="publication__title">
+            {item.paperHref ? (
+              <a
+                class="publication__title-link"
+                href={item.paperHref}
+                target={externalPaper ? '_blank' : undefined}
+                rel={externalPaper ? 'noopener noreferrer' : undefined}
+              >
+                {item.title}
+              </a>
+            ) : (
+              item.title
+            )}
+          </h3>
+          <p class="publication__actions">
+            {item.paperHref ? null : (
+              <span class="publication__missing">Paper: to be public</span>
+            )}
+            {item.paperHref ? null : (
+              <span class="publication__separator" aria-hidden="true">
+                ·
+              </span>
+            )}
+            {item.codeHref ? (
+              <a
+                class="publication__action"
+                href={item.codeHref}
+                target={externalCode ? '_blank' : undefined}
+                rel={externalCode ? 'noopener noreferrer' : undefined}
+              >
+                Code<span class="visually-hidden"> for {item.title}</span>
+              </a>
+            ) : (
+              <span class="publication__missing">Code: to be public</span>
+            )}
+          </p>
+          <p class="publication__authors">{item.authors.join(', ')}</p>
+        </li>
+      );
+    })
+  }
+</ol>
+
+<style>
+  .publication-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    margin-block: var(--space-6) 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .publication {
+    min-inline-size: 0;
+  }
+
+  .publication__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    align-items: baseline;
+    margin-block: 0 var(--space-2);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-snug);
+    overflow-wrap: anywhere;
+  }
+
+  .publication__venue {
+    color: var(--color-text);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .publication__year {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .publication__title {
+    margin-block: 0 var(--space-2);
+    font-size: var(--font-size-lg);
+    line-height: var(--line-height-snug);
+    overflow-wrap: anywhere;
+  }
+
+  .publication__title-link {
+    text-underline-offset: 0.15em;
+  }
+
+  .publication__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    align-items: baseline;
+    margin-block: 0 var(--space-2);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-snug);
+  }
+
+  .publication__action,
+  .publication__missing {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--size-target-min);
+    overflow-wrap: anywhere;
+  }
+
+  /* DEF-08-01: a short standalone action ("Code") must also meet the coarse
+     pointer target width. Fine pointers keep the natural text width (24px
+     minimum, "Code" is wider); only the coarse token pushes it to 44px. */
+  .publication__action {
+    justify-content: center;
+    min-inline-size: var(--size-target-min);
+  }
+
+  .publication__separator {
+    color: var(--color-text-secondary);
+  }
+
+  .publication__authors {
+    margin: 0;
+    max-inline-size: 100%;
+    color: var(--color-text);
+    overflow-wrap: anywhere;
+  }
+</style>

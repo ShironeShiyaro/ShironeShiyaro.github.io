@@ -1,0 +1,198 @@
+---
+import type { NavigationManifest } from '@selfpage/content-model';
+import TopBar from './TopBar.astro';
+import SiteNav from '../navigation/SiteNav.astro';
+import { navPreviewId, siteSettingsHref, type NavigationState } from '@selfpage/site-shell/nav-model';
+
+interface Props {
+  siteTitle: string;
+  homeHref: string;
+  manifest: NavigationManifest;
+  current: NavigationState;
+  drawerOpen?: boolean;
+}
+
+const { siteTitle, homeHref, manifest, current, drawerOpen = true } = Astro.props;
+const drawerId = 'site-drawer';
+const showBlogNavigation = current.key === 'blog';
+// Task 08 (R08-2): a fixed route derived from the base-path-aware Home href.
+// Settings is a single control in the fixed footer, never a navigation list
+// item, so it can never create a second-level Settings entry.
+const settingsHref = siteSettingsHref(homeHref);
+const settingsCurrent = current.page === 'settings';
+---
+
+<TopBar siteTitle={siteTitle} homeHref={homeHref} controlsId={drawerId} drawerOpen={drawerOpen} />
+
+<div class="site-topbar-spacer" data-size="topbar-spacer"></div>
+
+<div class="site-backdrop" data-drawer-backdrop aria-hidden="true"></div>
+
+<div class="site-drawer" id={drawerId} data-layout="drawer">
+  <div class="site-drawer__first-row" data-size="drawer-first-row" aria-hidden="true"></div>
+  <div class="site-drawer__close-row">
+    <button type="button" class="site-drawer__close" data-drawer-close>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path d="M6 6l12 12M18 6L6 18"></path>
+      </svg>
+      <span>Close</span>
+    </button>
+  </div>
+  <div
+    class="site-drawer__scroll"
+    data-drawer-scroll
+    tabindex="0"
+    role="region"
+    aria-label="Site navigation"
+  >
+    <SiteNav manifest={manifest} current={current} />
+  </div>
+  <nav class="site-drawer__footer" data-size="drawer-footer" aria-label="Settings">
+    <a
+      class="site-nav__settings"
+      data-size="nav-item"
+      data-settings-slot
+      data-settings-link
+      href={settingsHref}
+      aria-current={settingsCurrent ? 'page' : undefined}
+    >
+      <span class="site-nav__label">Settings</span>
+    </a>
+  </nav>
+</div>
+
+<script is:inline>
+  // Runs while the drawer markup is being parsed, before first paint. With
+  // scripting enabled the drawer adopts the open state stored for this tab
+  // (`sessionStorage`, per-tab; absent or unreadable means closed), so a first
+  // visit or a new tab starts closed without a "close then reopen" flash.
+  // The middle scroller's position is part of the same persistent navigation
+  // contract (user 2026-11-25): it is restored here too, before the first paint,
+  // so switching articles never rewinds the sidebar to its top.
+  // Navigation clicks never write that state; only the navigation controller's
+  // explicit Menu/Close/Escape/backdrop actions do.
+  // If the navigation module never confirms that it initialised (load failure,
+  // 404, syntax/runtime error), this boot code restores the static
+  // server-rendered navigation and disables the dead Menu button. It never
+  // writes storage, so a saved state is not destroyed by the fallback.
+  // With scripting disabled this block is skipped entirely.
+  (() => {
+    const root = document.documentElement;
+    const drawer = document.getElementById('site-drawer');
+    const menu = document.querySelector('[data-drawer-toggle]');
+    if (!drawer) return;
+
+    // If the browser already painted the server-rendered open drawer before
+    // this script ran (slow parse / busy main thread), the initial close must
+    // not animate: a 0.2s visible slide would be exactly the flash this boot
+    // code exists to avoid. Later explicit Menu/Close toggles animate normally
+    // once the flag is released two frames later.
+    root.setAttribute('data-drawer-booting', '');
+
+    const STORAGE_KEY = 'selfpage:drawer-open';
+    const readStoredOpen = () => {
+      try {
+        return sessionStorage.getItem(STORAGE_KEY) === 'true';
+      } catch {
+        // Blocked/unreadable storage fails safe to the closed default.
+        return false;
+      }
+    };
+
+    let ready = false;
+    const fallback = () => {
+      if (ready) return;
+      ready = true;
+      root.removeAttribute('data-nav-ready');
+      root.setAttribute('data-drawer-open', 'true');
+      drawer.removeAttribute('inert');
+      drawer.removeAttribute('aria-hidden');
+      if (menu) {
+        menu.setAttribute('aria-expanded', 'true');
+        if (menu instanceof HTMLButtonElement) menu.disabled = true;
+      }
+    };
+
+    const open = readStoredOpen();
+    root.setAttribute('data-nav-ready', '');
+    root.setAttribute('data-drawer-open', String(open));
+    if (open) {
+      drawer.removeAttribute('inert');
+      drawer.removeAttribute('aria-hidden');
+    } else {
+      drawer.setAttribute('inert', '');
+      drawer.setAttribute('aria-hidden', 'true');
+    }
+    if (menu) menu.setAttribute('aria-expanded', String(open));
+
+    // Restore the middle scroller before the first paint. The key is written by
+    // `navigation.ts` (the single owner of the save rules: only a user gesture
+    // records an offset, and `pagehide` flushes that recorded offset rather than
+    // `scrollTop`), so a restored-but-clamped value on a shorter page can never
+    // overwrite a longer list's saved position. The controller restores again
+    // once it owns the drawer, which also repairs a browser that clamped the
+    // value before layout/fonts settled.
+    const scroller = drawer.querySelector('[data-drawer-scroll]');
+    if (scroller) {
+      try {
+        const storedTop = Number.parseFloat(sessionStorage.getItem('selfpage:drawer-scroll') ?? '');
+        if (Number.isFinite(storedTop) && storedTop > 0) scroller.scrollTop = storedTop;
+      } catch {
+        // Unreadable storage keeps the natural top position.
+      }
+    }
+
+    const timer = window.setTimeout(fallback, 800);
+    const onReady = () => {
+      ready = true;
+      window.clearTimeout(timer);
+      document.removeEventListener('site:navigation-ready', onReady);
+    };
+    document.addEventListener('site:navigation-ready', onReady);
+    document.addEventListener(
+      'error',
+      (event) => {
+        if (event.target instanceof HTMLScriptElement) fallback();
+      },
+      true,
+    );
+
+    // Two frames: the first recalc applies the authoritative state with
+    // transitions suppressed, the second releases the flag without starting a
+    // transition (open -> open / closed -> closed is a no-op for CSS).
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => root.removeAttribute('data-drawer-booting'));
+    });
+  })();
+</script>
+
+{
+  showBlogNavigation && (
+    <div class="nav-preview-layer" aria-hidden="true" data-nav-preview-layer>
+      {manifest.blog.years.map((year) =>
+        year.posts.map((post, index) => (
+          <div class="nav-preview" id={navPreviewId(year.year, index)} data-nav-preview>
+            <p class="nav-preview__title">{post.title}</p>
+            <p class="nav-preview__date">{post.displayDate ?? post.date}</p>
+          </div>
+        )),
+      )}
+    </div>
+  )
+}
+
+<main id="content" class="site-main" data-layout="article-container" tabindex="-1">
+  <slot />
+</main>
+
+<script>
+  import '../navigation/navigation';
+</script>

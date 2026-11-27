@@ -1,0 +1,22 @@
+{
+  "name": "@selfpage/site-shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared public-site shell: navigation model/data, PUBLIC_SITE_ORIGIN rules, drawer controller and CSS",
+  "exports": {
+    ".": "./src/index.ts",
+    "./nav-model": "./src/nav-model.ts",
+    "./nav-data": "./src/nav-data.ts",
+    "./origin": "./src/origin.ts",
+    "./drawer": "./src/drawer.ts",
+    "./preferences": "./src/preferences.ts",
+    "./shell.css": "./src/shell.css"
+  },
+  "scripts": {
+    "check": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@selfpage/content-model": "0.1.0"
+  }
+}

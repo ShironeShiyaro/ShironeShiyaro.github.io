@@ -1,0 +1,87 @@
+---
+import { compareBlogGroupKeysDescending, type BlogPostSummary } from '@selfpage/content-model';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getSiteData } from '../../lib/content';
+import '../../styles/blog.css';
+
+const { manifest } = await getSiteData();
+
+interface MonthGroup {
+  key: string;
+  label: string;
+  posts: BlogPostSummary[];
+}
+
+interface YearGroup {
+  year: string;
+  months: MonthGroup[];
+}
+
+const monthFormatter = new Intl.DateTimeFormat('en', { month: 'long', timeZone: 'UTC' });
+
+function monthLabel(monthKey: string): string {
+  const [year, month] = monthKey.split('-');
+  // Date.UTC + timeZone: 'UTC' keeps the label in the same month as the
+  // manifest date, regardless of the build machine's local time zone.
+  return monthFormatter.format(new Date(Date.UTC(Number(year), Number(month) - 1, 1)));
+}
+
+// The manifest is the single source of truth: it already contains every post
+// with its title, full date, short date and href, sorted newest first. Month
+// groups are derived from the full date; months never enter the site navigation.
+const years: YearGroup[] = manifest.blog.years
+  .map((year) => {
+    const posts = [...year.posts].sort((left, right) => right.date.localeCompare(left.date));
+    const months = new Map<string, BlogPostSummary[]>();
+    for (const post of posts) {
+      const monthKey = post.date.slice(0, 7);
+      const monthPosts = months.get(monthKey) ?? [];
+      monthPosts.push(post);
+      months.set(monthKey, monthPosts);
+    }
+    return {
+      year: year.year,
+      months: [...months.keys()].sort(compareBlogGroupKeysDescending).map((key) => ({
+        key,
+        label: monthLabel(key),
+        posts: months.get(key) ?? [],
+      })),
+    };
+  })
+  .sort((left, right) => compareBlogGroupKeysDescending(left.year, right.year));
+---
+
+<BaseLayout title={manifest.blog.title} description="Notes and placeholder posts, newest first.">
+  <div class="blog-index">
+    <h1 class="blog-index__title">{manifest.blog.title}</h1>
+    {
+      years.map((year) => (
+        <section class="blog-year-group" data-blog-year={year.year}>
+          <h2 id={`year-${year.year}`} class="blog-year__title" tabindex="-1">
+            {year.year}
+          </h2>
+          {year.months.map((month) => (
+            <div class="blog-month-group" data-blog-month={month.key}>
+              <h3 class="blog-month__title">{month.label}</h3>
+              <ul class="blog-post-list" role="list">
+                {month.posts.map((post) => (
+                  <li class="blog-post-list__item">
+                    <a class="blog-post" href={post.href}>
+                      <span class="blog-post__title">{post.title}</span>
+                      <time
+                        class="blog-post__date"
+                        datetime={post.time ? `${post.date}T${post.time}` : post.date}
+                      >
+                        {post.displayDate ?? post.date}
+                      </time>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      ))
+    }
+  </div>
+</BaseLayout>

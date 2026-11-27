@@ -1,0 +1,152 @@
+# Verification only: this workflow never deploys anything.
+#
+# Deployment lives in `.github/workflows/pages.yml` (push to main +
+# workflow_dispatch). Keeping the two files separate is deliberate: a green run
+# here says "the commit builds and passes its gates", it does NOT say "the site
+# is live". See docs/运维排障与回滚.md for the commit-vs-deployment distinction.
+#
+# Permissions are read-only on purpose: a PR job that cannot write cannot push,
+# deploy or mint a Pages/OIDC token. No secret is read by any step below.
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:  # read-only: this workflow must never be able to write or deploy
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Install, check, test, build, site E2E
+    # windows-latest is the environment the README documents (Windows 11 +
+    # system Microsoft Edge + PowerShell), so CI exercises the same code paths
+    # that `tests/run-e2e.mjs` uses locally, including its taskkill teardown.
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      # Keep Wrangler from sending telemetry from CI; `npm run build` runs
+      # `wrangler deploy --dry-run`, which is local-only and needs no account.
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout
+        # actions/checkout v6.0.3, pinned by commit SHA (tag list checked
+        # 2026-11-26). Bump by replacing the SHA and the comment together.
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Set up Node.js 24
+        # actions/setup-node v6.5.0, pinned by commit SHA.
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies from the lockfile
+        run: npm ci
+
+      - name: Gate — types, Astro check, text format, workflow invariants
+        run: npm run check
+
+      - name: Gate — unit and integration tests
+        run: npm test
+
+      - name: Build public site and author app
+        run: npm run build
+
+      - name: Verify build artifacts (links, no local paths, no secrets, no sitemap)
+        run: npm run check:dist
+
+      - name: Install the test browser (Microsoft Edge channel)
+        # `playwright.config.ts`/`playwright.author.config.ts` use
+        # `channel: 'msedge'`, and the site E2E suite drives a real browser.
+        # This step does NOT assume msedge exists on the image: when Edge is
+        # present Playwright resolves it from the system ("Install location:
+        # <system>"), otherwise it installs it. `--with-deps` is Linux-only and
+        # is intentionally absent on the Windows runner; if this job ever moves
+        # to ubuntu-latest use `npx playwright install --with-deps msedge`.
+        run: npx playwright install msedge
+
+      - name: Gate — site E2E on both bases (root and /demo/)
+        run: npm run test:e2e
+
+      - name: Upload E2E evidence (logs, traces, reports)
+        # `if: always()` matters more on failure than on success: the preview
+        # logs under test-results/e2e-preview/ and Playwright's traces are what
+        # make a red run diagnosable without re-running it locally.
+        #
+        # Privacy: repository artifacts are downloadable by anyone who can read
+        # this repository (it is public, and PR runs expose them to PR readers).
+        # Treat every uploaded file as public — logs, traces and screenshots must
+        # never contain a real token, cookie or client secret.
+        if: always()
+        # actions/upload-artifact v7.0.2, pinned by commit SHA (tag list checked
+        # 2026-11-26). v4+ artifacts are immutable and cannot be shared between
+        # jobs, so every job uploads its own artifact name.
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: ci-site-e2e
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # R09-20: the author app has its own end-to-end suite (two Workers, a fixed
+  # test clock, Playwright). It runs as a separate job so it can proceed in
+  # parallel with `verify` and so a failure names the author app, not the site.
+  # Independently measured on Windows 11: 3 consecutive full runs, 80/80/80
+  # passed, 4.4-4.5 min each, no port or Worker-startup flake.
+  author-e2e:
+    name: Author app E2E (mock GitHub, fixed clock)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies from the lockfile
+        run: npm ci
+
+      - name: Install the test browser (Microsoft Edge channel)
+        run: npx playwright install msedge
+
+      - name: Gate — author E2E (test Worker + production-mode Worker on 43243/43244)
+        # The runner fails fast when 43243/43244/9231/9232 are taken, builds the
+        # author client, injects the fixed clock, and writes its logs to
+        # test-results/author-e2e/ (R09-6) — never into task 06's evidence tree.
+        run: npm run test:e2e:author
+
+      - name: Upload author E2E evidence (logs, run report, traces)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: ci-author-e2e
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 7
+
+# Not covered here (deliberate, see docs/部署指南.md §7):
+#   * deploy: Pages deployment is `pages.yml`; the author Worker is deployed
+#     manually by the user (`npm run deploy:author`), never from CI. Neither job
+#     here has a write token, so a compromised PR cannot publish anything.
+#   * the 07 GitHub real-route suite (`npm run test:e2e:author:github`) and the
+#     real Tier-2 publish run stay local/on-demand: they need a mock GitHub
+#     server plus extra ports (43261-43263) and, for Tier-2, the user's own
+#     authorization. They are not part of the PR gate.

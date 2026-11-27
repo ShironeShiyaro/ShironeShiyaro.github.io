@@ -1,0 +1,232 @@
+/* SelfPage content typography. It consumes tokens and keeps the article
+ * container (main) at its 59% width on wide screens; only the prose measure is
+ * capped at 80ch. */
+
+.site-main > :first-child {
+  margin-block-start: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-block: 0 var(--space-4);
+  color: var(--color-text);
+  line-height: var(--line-height-tight);
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+
+h1 {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  margin-block-end: var(--space-5);
+}
+
+h2 {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  margin-block-start: var(--space-10);
+}
+
+h3 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  margin-block-start: var(--space-8);
+}
+
+h4 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin-block-start: var(--space-6);
+}
+
+p,
+ul,
+ol,
+dl,
+blockquote,
+figure {
+  max-inline-size: var(--measure-prose);
+}
+
+p {
+  margin-block: 0 var(--space-4);
+  line-height: var(--line-height-relaxed);
+}
+
+ul,
+ol {
+  margin-block: 0 var(--space-4);
+  padding-inline-start: var(--space-6);
+}
+
+li + li {
+  margin-block-start: var(--space-1);
+}
+
+li > p {
+  margin-block-end: var(--space-2);
+}
+
+blockquote {
+  margin-inline: 0;
+  padding-inline-start: var(--space-4);
+  color: var(--color-text-secondary);
+  border-inline-start: var(--size-state-indicator) solid var(--color-border);
+}
+
+hr {
+  margin-block: var(--space-6);
+  border: 0;
+  border-block-start: var(--size-control-border) solid var(--color-border);
+}
+
+time {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-family-mono);
+  font-size: 0.9em;
+}
+
+code {
+  overflow-wrap: anywhere;
+}
+
+pre {
+  max-inline-size: 100%;
+  margin-block: 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  color: var(--color-text);
+  background-color: var(--color-sidebar);
+  border: var(--size-control-border) solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+pre code {
+  font-size: inherit;
+  overflow-wrap: normal;
+}
+
+img,
+svg {
+  max-inline-size: 100%;
+}
+
+figure {
+  margin-inline: 0;
+}
+
+figcaption {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Blog article ----------------------------------------------------------- */
+.post h1 {
+  margin-block-end: var(--space-2);
+}
+
+.post-date {
+  margin-block: 0 var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.post hr {
+  margin-block: var(--space-5) var(--space-8);
+}
+
+/* Blog index ------------------------------------------------------------- */
+.blog-year {
+  margin-block-start: var(--space-10);
+}
+
+.blog-month {
+  margin-block: var(--space-6) var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+}
+
+.post-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.post-list a {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  min-block-size: var(--size-target-min);
+  padding-block: var(--space-2);
+  text-decoration: none;
+}
+
+.post-list a:hover .post-title {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.post-list .post-title {
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Publications ----------------------------------------------------------- */
+.publication-list {
+  margin-block: var(--space-6) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.publication-list > li {
+  margin-block-end: var(--space-8);
+}
+
+.publication-list h3 {
+  margin-block: 0 var(--space-2);
+}
+
+.publication-meta {
+  margin-block: 0 var(--space-1);
+  color: var(--color-text-secondary);
+}
+
+.publication-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin-block: var(--space-2) 0;
+}
+
+.publication-links a,
+.publication-links .missing-link {
+  min-block-size: var(--size-target-min);
+  display: inline-flex;
+  align-items: center;
+}
+
+.missing-link {
+  color: var(--color-text-secondary);
+}
+
+/* 404 -------------------------------------------------------------------- */
+.site-main > p + p {
+  margin-block-start: var(--space-6);
+}

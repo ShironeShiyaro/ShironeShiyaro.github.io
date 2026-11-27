@@ -1,0 +1,45 @@
+{
+  "name": "selfpage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Xinyang Zeng's Homepage - static Astro site and same-origin author tools",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @selfpage/site",
+    "dev:author": "npm run dev --workspace @selfpage/author",
+    "dev:author:github": "npm run build --workspace @selfpage/author && cd apps/author && node ../../node_modules/wrangler/bin/wrangler.js dev --port 8787 --env-file ../../.dev.vars",
+    "check:workflows": "node tests/check-workflows.mjs",
+    "check:worker": "node tests/check-worker-prod-config.mjs",
+    "check:runners": "node tests/check-test-output-paths.mjs",
+    "check:root": "tsc --noEmit -p tsconfig.tests.json",
+    "check:format": "node tests/check-format.mjs",
+    "check:dist": "node tests/check-deploy-artifacts.mjs",
+    "check": "npm run check:workflows && npm run check:worker && npm run check:runners && npm run check:root && npm run check:format && npm run check --workspace @selfpage/content-model && npm run check --workspace @selfpage/markdown && npm run check --workspace @selfpage/site-shell && npm run check --workspace @selfpage/site && npm run check --workspace @selfpage/author",
+    "test": "vitest run",
+    "test:e2e": "node tests/run-e2e.mjs",
+    "test:e2e:author": "node tests/run-author-e2e.mjs",
+    "test:e2e:author:github": "node tests/run-author-github-e2e.mjs",
+    "test:e2e:author:h1": "node tests/author-e2e/e07-literal-h1.mjs",
+    "build": "npm run build --workspace @selfpage/site && npm run build --workspace @selfpage/author",
+    "preview": "npm run preview --workspace @selfpage/site",
+    "deploy:author": "node tests/check-author-build-env.mjs && npm run check:worker && npm run build --workspace @selfpage/author && cd apps/author && node ../../node_modules/wrangler/bin/wrangler.js deploy",
+    "content:validate": "node packages/content-model/src/cli.ts validate",
+    "content:manifest": "node packages/content-model/src/cli.ts manifest"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@axe-core/playwright": "^4.14.1",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
+    "typescript": "~5.9.3",
+    "vitest": "^5.1.1",
+    "wrangler": "^4.167.0"
+  }
+}
