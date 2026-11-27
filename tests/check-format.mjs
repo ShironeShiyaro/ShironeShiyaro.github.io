@@ -1,7 +1,23 @@
 #!/usr/bin/env node
 // Dependency-free text hygiene gate: UTF-8 without BOM, LF line endings, no
-// trailing whitespace, and a final newline. This is not a style/lint tool;
-// ESLint/Prettier are deferred to task 09 (see README and the task ledger).
+// trailing whitespace (one Markdown exception, below), and a final newline.
+// This is not a style/lint tool; ESLint/Prettier are deferred to task 09 (see
+// README and the task ledger).
+//
+// Trailing whitespace rule, with the D34 exception:
+//   * `content/**/*.md` may end a non-blank line with EXACTLY two spaces. That
+//     is the standard Markdown hard break (D34, total-control ledger
+//     `docs_AI/台账/总控/00-总台账.md`: "行末两个空格 + 换行 = 硬换行"; the
+//     author Preview renders it as `<br>`, and Astro does the same on the
+//     public site). A real publish that contains a hard break therefore used to
+//     fail the CI format gate even though the article is valid — a gate that
+//     rejects contract-valid content is a gate bug (R09-9).
+//   * Every other trailing-whitespace shape stays an error everywhere,
+//     including in content Markdown: one space, three or more spaces, a tab,
+//     and a whitespace-only line whose whole run happens to be two spaces
+//     (that is not a hard break — there is no text for it to break).
+//   * All other directories keep the strict "no trailing whitespace at all"
+//     rule; only `content/**/*.md` gets the exception.
 //
 // Scope: task-owned source, content, tests, docs, root config and task records.
 // Evidence under docs_AI/记录/**/assets is raw command output and is excluded;
@@ -79,10 +95,38 @@ const MOJIBAKE_PATTERNS = [
   ['\uFFFD', 'Unicode replacement character'],
 ];
 
+/**
+ * Finds the first line whose trailing whitespace violates the rule.
+ *
+ * `allowHardBreaks` is true only for authored article Markdown under
+ * `content/`. There, a line is accepted when its trailing run is exactly two
+ * spaces AND some non-whitespace text precedes them: that is the D34 Markdown
+ * hard break. A trailing run of one space, three or more spaces, any tab, or
+ * two spaces on an otherwise blank line is still reported.
+ */
+function findTrailingWhitespaceIssue(text, allowHardBreaks) {
+  const lines = text.split('\n');
+  for (const [index, rawLine] of lines.entries()) {
+    // CR is reported separately; strip it so a CRLF file still gets the
+    // trailing-whitespace verdict it would get once converted to LF.
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+    const match = /^(.*?)([ \t]+)$/u.exec(line);
+    if (match === null) continue;
+    const [, head, trailing] = match;
+    if (allowHardBreaks && trailing === '  ' && head.length > 0) continue;
+    if (allowHardBreaks) {
+      return `trailing whitespace (line ${index + 1} ends with ${JSON.stringify(trailing)}; content/**/*.md allows exactly two spaces as a Markdown hard break)`;
+    }
+    return `trailing whitespace (line ${index + 1})`;
+  }
+  return null;
+}
+
 function inspectText(text, options = {}) {
   const issues = [];
   if (text.includes('\r')) issues.push('CRLF or CR line ending (use LF)');
-  if (/[ \t]+$/m.test(text)) issues.push('trailing whitespace');
+  const trailing = findTrailingWhitespaceIssue(text, options.hardBreaks === true);
+  if (trailing !== null) issues.push(trailing);
   if (text.length > 0 && !text.endsWith('\n')) issues.push('missing final newline');
   if (options.mojibake !== false) {
     for (const [sequence, description] of MOJIBAKE_PATTERNS) {
@@ -90,6 +134,15 @@ function inspectText(text, options = {}) {
     }
   }
   return issues;
+}
+
+/**
+ * The D34 hard-break exception applies to authored article Markdown only.
+ * Fixture content trees under `tests/fixtures/` are test data, not published
+ * articles, and stay under the strict rule.
+ */
+function isContentMarkdown(display) {
+  return display.startsWith('content/') && display.endsWith('.md');
 }
 
 /**
@@ -145,12 +198,28 @@ function collectScenario() {
 }
 
 function runSelfTest() {
+  const contentTrailing = (line, found) =>
+    `trailing whitespace (line ${line} ends with ${JSON.stringify(found)}; content/**/*.md allows exactly two spaces as a Markdown hard break)`;
   const cases = [
     ['clean LF file', 'alpha\nbeta\n', []],
     ['clean Chinese text with 漏', '这是正常中文，包含遗漏与漏水。\n', []],
+    // D34 hard break: two positives, then the shapes that must stay rejected.
+    ['content hard break: exactly two spaces', 'alpha  \nbeta\n', [], { hardBreaks: true }],
+    [
+      'content hard break inside a prose article',
+      '---\ntitle: Example\n---\n\n# Example\n\nFirst line  \nsecond line.\n',
+      [],
+      { hardBreaks: true },
+    ],
+    ['content hard break: one trailing space', 'alpha \nbeta\n', [contentTrailing(1, ' ')], { hardBreaks: true }],
+    ['content hard break: three trailing spaces', 'alpha   \nbeta\n', [contentTrailing(1, '   ')], { hardBreaks: true }],
+    ['content hard break: trailing tab', 'alpha\t\nbeta\n', [contentTrailing(1, '\t')], { hardBreaks: true }],
+    ['content hard break: two spaces on a blank line', 'alpha\n  \nbeta\n', [contentTrailing(2, '  ')], { hardBreaks: true }],
+    // The exception is scoped: the same two spaces are still an error elsewhere.
+    ['two trailing spaces outside content', 'alpha  \nbeta\n', ['trailing whitespace (line 1)'], {}],
     ['CRLF file', 'alpha\r\nbeta\r\n', ['CRLF or CR line ending (use LF)']],
-    ['trailing spaces', 'alpha \nbeta\n', ['trailing whitespace']],
-    ['trailing tab', 'alpha\t\nbeta\n', ['trailing whitespace']],
+    ['trailing spaces', 'alpha \nbeta\n', ['trailing whitespace (line 1)']],
+    ['trailing tab', 'alpha\t\nbeta\n', ['trailing whitespace (line 1)']],
     ['no final newline', 'alpha\nbeta', ['missing final newline']],
     [
       'mojibake lead-byte sequence',
@@ -159,8 +228,8 @@ function runSelfTest() {
     ],
   ];
   let failed = 0;
-  for (const [name, text, expected] of cases) {
-    const actual = inspectText(text);
+  for (const [name, text, expected, options] of cases) {
+    const actual = inspectText(text, options);
     const ok = JSON.stringify(actual) === JSON.stringify(expected);
     if (!ok) {
       failed += 1;
@@ -200,7 +269,9 @@ function runSelfTest() {
     console.error(`FAIL: ${failed} format self-test(s) failed`);
     process.exitCode = 1;
   } else {
-    console.log('PASS: format self-test (LF, trailing whitespace, final newline, UTF-8 BOM, invalid UTF-8)');
+    console.log(
+      'PASS: format self-test (LF, trailing whitespace incl. the content/**/*.md D34 hard-break exception, final newline, UTF-8 BOM, invalid UTF-8)',
+    );
   }
 }
 
@@ -217,7 +288,10 @@ if (process.argv.includes('--self-test')) {
     const display = relative(repoRoot, absolute).split('\\').join('/');
     try {
       const text = readUtf8WithoutBom(absolute);
-      for (const issue of inspectText(text, { mojibake: isMojibakeCheckedPath(display) })) {
+      for (const issue of inspectText(text, {
+        mojibake: isMojibakeCheckedPath(display),
+        hardBreaks: isContentMarkdown(display),
+      })) {
         failures.push(`${display}: ${issue}`);
       }
     } catch (error) {
@@ -230,7 +304,7 @@ if (process.argv.includes('--self-test')) {
     process.exitCode = 1;
   } else {
     console.log(
-      `PASS: ${uniqueFiles.length} text files are UTF-8 (no BOM), LF, no trailing whitespace, final newline; source files have no known mojibake sequence`,
+      `PASS: ${uniqueFiles.length} text files are UTF-8 (no BOM), LF, no forbidden trailing whitespace (content/**/*.md allows only the D34 two-space hard break), final newline; source files have no known mojibake sequence`,
     );
   }
 }
