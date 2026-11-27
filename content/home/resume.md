@@ -20,20 +20,14 @@
 
 I'm a freshman majoring in Computer Science at Harbin Institute of Technology, Shenzhen. I'm intereted in Brain-inspired Computing, using c++ to simulate the work of brain. I'm also a newcomer to the VEX competition. Feel free to contact me if you are interested in these too.
 
----
-
 # Education
 
 - **Harbin Institute of Technology, Shenzhen** — Pursuing a bachelor's degree in computer science, 2026-Now
-
----
 
 # Skills
 
 - Programming: Python, C++
 - No more skills now...
-
----
 
 # Projects
 
@@ -41,13 +35,9 @@ I'm a freshman majoring in Computer Science at Harbin Institute of Technology, S
 - Pending...
 - Pending too...
 
----
-
 # News
 
 - Nov. 2026: Create this page.
-
----
 
 # About the blog
 
