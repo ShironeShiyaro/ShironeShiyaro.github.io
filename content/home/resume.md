@@ -10,7 +10,7 @@
 
 **Email:** 2026310867@stu.hit.edu.cn; shiyaroshirone@gmail.com
 
-**GitHub:** https://github.com/ShironeShiyaro [Click](https://github.com/ShironeShiyaro)
+**GitHub:** https://github.com/ShironeShiyaro
 
 **Social Media:**
 - bilibili: [暘谷之杨](https://space.bilibili.com/3546674563648324)
