@@ -43,8 +43,11 @@ export async function getSiteData(): Promise<SiteData> {
       .filter(isBlog)
       .sort((left, right) =>
         compareBlogPostsNewestFirst(
-          { date: left.data.date, route: left.data.route },
-          { date: right.data.date, route: right.data.route },
+          // R10-16: the time is what breaks ties inside one day; without it the
+          // site collection would fall back to route order and disagree with
+          // the manifest/sidebar.
+          { date: left.data.date, route: left.data.route, time: left.data.time },
+          { date: right.data.date, route: right.data.route, time: right.data.time },
         ),
       ),
   };

@@ -27,11 +27,14 @@ function monthLabel(monthKey: string): string {
 }
 
 // The manifest is the single source of truth: it already contains every post
-// with its title, full date, short date and href, sorted newest first. Month
-// groups are derived from the full date; months never enter the site navigation.
+// with its title, full date, short date and href, sorted newest first — date,
+// then time, then route (R10-16). Do not re-sort year.posts here with a
+// date-only key: that would be a second ordering rule that can drift.
+// Month groups are derived from the full date; months never enter the site
+// navigation.
 const years: YearGroup[] = manifest.blog.years
   .map((year) => {
-    const posts = [...year.posts].sort((left, right) => right.date.localeCompare(left.date));
+    const posts = year.posts;
     const months = new Map<string, BlogPostSummary[]>();
     for (const post of posts) {
       const monthKey = post.date.slice(0, 7);
