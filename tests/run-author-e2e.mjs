@@ -22,9 +22,23 @@
  * (`if: always()`), so a failed run's logs are downloadable from that run. If
  * that upload step is ever removed from `.github/workflows/ci.yml`, this
  * paragraph is wrong and must be updated with it.
+ *
+ * R09-9: an artifact is not enough. The 2026-11-27 first real publish turned CI
+ * red and the job log only said `Playwright exit code: 1`, because Playwright's
+ * stdout went to the log file and never to the step output. On a non-zero exit
+ * this runner now prints a failure digest (summary plus every failure's error and
+ * leading stack lines) to stdout, so the CI step itself explains the failure.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync, writeFileSync, writeSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  writeFileSync,
+  writeSync,
+} from 'node:fs';
 import { createServer } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -226,6 +240,67 @@ function writeRunReport(report) {
   writeFileSync(logs.run, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 }
 
+/**
+ * Echoes the parts of Playwright's log that make a red CI step diagnosable
+ * without downloading the artifact: the summary, then each failure heading with
+ * its error message and the first lines of its stack/call log.
+ *
+ * The list reporter writes a failed test as a `  1) [project] › file:line ›
+ * title` block, and the retry-free summary as `  N failed` followed by the
+ * failing titles. The parser below keys on those two shapes; if the reporter
+ * ever changes, the fallback prints the log's tail instead of nothing.
+ */
+function printPlaywrightFailureDigest() {
+  if (!existsSync(logs.playwright)) {
+    log('Playwright log was not written, so there is no failure digest to show.');
+    return;
+  }
+  let text;
+  try {
+    text = readFileSync(logs.playwright, 'utf8');
+  } catch (error) {
+    log(`Playwright log could not be read: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+  const lines = text.split(/\r?\n/);
+  const failureHeadings = [];
+  let summaryStart = -1;
+  for (const [index, line] of lines.entries()) {
+    if (/^\s*\d+\)\s/u.test(line)) failureHeadings.push(index);
+    if (/^\s*\d+ (failed|flaky|timed out)\b/u.test(line)) summaryStart = index;
+  }
+
+  const MAX_BLOCK_LINES = 45;
+  const MAX_TAIL_LINES = 150;
+  const emit = (line) => process.stdout.write(`[author-e2e]   ${line}\n`);
+  const emitBlock = (start, end, maxLines = MAX_BLOCK_LINES) => {
+    const block = lines.slice(start, Math.min(end, start + maxLines));
+    for (const line of block) emit(line);
+    if (end - start > maxLines) {
+      emit(`... ${end - start - maxLines} more line(s) in ${logs.playwright}`);
+    }
+  };
+
+  log(`----- Playwright failure digest (${logs.playwright}) -----`);
+  if (summaryStart >= 0) {
+    log('Summary:');
+    for (const line of lines.slice(summaryStart)) emit(line);
+  }
+  if (failureHeadings.length > 0) {
+    log(`Failure details (${failureHeadings.length} block(s)):`);
+    for (const [index, start] of failureHeadings.entries()) {
+      const nextStart = failureHeadings[index + 1] ?? Number.POSITIVE_INFINITY;
+      const end = Math.min(nextStart, summaryStart > start ? summaryStart : Number.POSITIVE_INFINITY);
+      emitBlock(start, Number.isFinite(end) ? end : lines.length);
+    }
+  } else if (summaryStart < 0) {
+    // Unknown reporter output shape: show the tail rather than hiding the cause.
+    log(`Could not parse failure blocks; showing the last ${MAX_TAIL_LINES} log line(s):`);
+    emitBlock(Math.max(0, lines.length - MAX_TAIL_LINES), lines.length, MAX_TAIL_LINES);
+  }
+  log(`----- end Playwright failure digest (full log: ${logs.playwright}) -----`);
+}
+
 // Per-run Wrangler persistence directories (`.wrangler/` is gitignored) and the
 // P2-4 rule: every run starts from a CLEAN Durable Object store.
 //
@@ -379,6 +454,9 @@ async function main() {
 try {
   const result = await main();
   playwrightExitCode = result.playwrightExit;
+  if (playwrightExitCode !== 0) {
+    printPlaywrightFailureDigest();
+  }
   writeRunReport({
     startedAt: RUN_STARTED_AT,
     finishedAt: new Date().toISOString(),
@@ -402,6 +480,10 @@ try {
 } catch (error) {
   const failure = error instanceof Error ? error.message : String(error);
   log(`FAILED: ${failure}`);
+  // A throw after Playwright already ran still has a diagnosable log.
+  if (existsSync(logs.playwright)) {
+    printPlaywrightFailureDigest();
+  }
   writeRunReport({
     startedAt: RUN_STARTED_AT,
     finishedAt: new Date().toISOString(),
