@@ -255,3 +255,5 @@ H1 保留完整标题；文件名标题必须等于 H1 经 New! 安全化规则�
 - `docs_AI/记录/r06/assets/` 是任务 06 的**历史证据**，任何测试运行都不应再写它（R09-6）。作者端 E2E 的输出在 `test-results/author-e2e/`（gitignored）。
 - **所有 runner 的输出都在 `test-results/<suite>/`**（R09-6/R09-19：作者端、07 GitHub 套件、07.5 独立套件、导航验证脚本等），`docs_AI/记录/` 下不再有任何 runner 写入；`npm run check:runners` 会拦住回退。
 - 改动部署相关文件后，至少跑：`npm run check`（含 workflow/worker 守卫）、`npm run build`、`npm run check:dist`、`npm run test:e2e`。
+
+<!-- R10 PR gate probe: this branch exists only to prove that pull_request runs CI and does not deploy. Never merge it. -->
