@@ -22,7 +22,7 @@
 > - `npm run check:dist` exit 0：`BASE_PATH=/` 与 `/demo/` 各 **178 条内部链接 PASS**；Pages 产物无测试端点，作者端 client 保留 1 处仅测试端点调用、生产 Worker 返回 404（已有 E2E 断言）；
 > - 生产预览（43221）：`/`、`/publications/`、`/blog/`、`/settings/`、`/favicon.ico` 五个 URL 全部 200；
 > - 站点 E2E：**152 passed + 1 skipped**（root；跳过的是 sanitizer 攻击用例，需专用构建，见记录 §7）**+ 2 passed**（`/demo/`）；
-> - 作者端 E2E：**80 passed / 4.8m**；作者端 GitHub 路由套件：**HTTP 32/32 + UI 8 passed**（fixture 内容，不受本次真实内容/排序修复影响）。
+> - 作者端 E2E：**80 passed（约 4.5–4.8m）**；作者端 GitHub 路由套件：**HTTP 32/32 + UI 8 passed**（fixture 内容，不受本次真实内容/排序修复影响）。
 >
 > **篇数会随用户发布继续增长，这些计数以交付 commit 实测为准；断言逻辑不随篇数变化。** 第 6 篇同步后：公开树 `origin/main` @ `20588fa` = 6 篇 / 11 页；开发树本分支 @ `8b724c5` 同步后同为 6 篇 / 11 页。
 >
@@ -163,7 +163,9 @@ docs_AI/
    npx playwright install msedge
    ```
    它优先使用系统 Edge（`[实测]` `install --dry-run msedge` 显示 `Install location: <system>`），缺了才下载。CI 也跑这一步，所以不假设运行环境一定有 Edge（见[部署指南](docs/部署指南.md) §7.4）。
-5. 只有部署作者端时才需要 Cloudflare 账号和 `wrangler login`；只有真实授权发布验收时才需要独立测试 GitHub App 和专用测试仓库。两者都不影响本地阅读、构建和测试。
+5. 只有部署作者端时才需要 Cloudflare 账号和 `wrangler login`；只有真实授权发布验收时才需要独立测试 GitHub App 和专用测试仓库。**这两样测试资源已于 2026-11-27 删除**（见[部署指南](docs/部署指南.md) §5.3）；要重做真实发布 E2E，需要重新创建一套，不能拿生产 App 或正式仓库替代。两者都不影响本地阅读、构建和测试。
+6. **根目录 `.dev.vars` 是什么**（gitignored，**不进 Git**）：本机 Cloudflare Worker 的运行时私密变量文件——App ID、App Client ID、App Client Secret、allowlist 的 user ID / repo ID、仓库 owner/name/branch、`GITHUB_CONTENT_ROOT`、`SESSION_SECRET`、`TOKEN_ENCRYPTION_KEY` 共 11 个名字。它只被 **Wrangler 运行时**读取（`wrangler dev --env-file ../../.dev.vars`、`npm run dev:author:github`），公开站构建**不读**它；生产环境的同名变量在 Cloudflare 的 `wrangler secret` 里，两者互不影响。本轮删除测试 GitHub App 后，文件里那套 `GITHUB_*` 值对应的是**已删除的测试 App**，现在只作为历史参考保留（不影响生产，也不影响 mock 模式的 `npm run dev:author`）。
+7. 重新部署作者端后要确认线上生效：作者端是 Cloudflare Worker，**`git push` 不会更新它**，必须跑 `npm run deploy:author`；公开站才是 `push` → Pages 自动部署。
 
 ### 统一命令
 
@@ -180,7 +182,7 @@ docs_AI/
 | `npm run check:dist` | **构建后**校验产物：内部链接 × BASE_PATH、无 sitemap、无本机绝对路径、无 secret/测试端点（本轮 root 与 `/demo/` 各 **178** 条链接） | 可用（需先 `npm run build`） |
 | `npm run test` | Vitest 单元/集成测试（本轮 **384 passed / 25 files**） | 可用 |
 | `npm run test:e2e` | 构建 root 与 `/demo/` 两套公开站，用系统 Edge 分别执行 Playwright（专用端口，不用外部服务）。**注意：用 `tests/fixtures/valid/site-content/content` 冻结快照，不测试你刚改的真实 `content/`，并会把 `apps/site/dist` 留在 fixture 内容上** | 可用（需本机 Edge） |
-| `npm run test:e2e:author` | 作者端 06 套件 + 07.5/08 增补（mock GitHub，43243/43244，本轮 **80 passed / 4.8m**） | 可用 |
+| `npm run test:e2e:author` | 作者端 06 套件 + 07.5/08 增补（mock GitHub，43243/43244，本轮 **80 passed / 约 4.5–4.8m**） | 可用 |
 | `npm run test:e2e:author:github` | 07 套件：mock GitHub（43261）+ 真实路由 test Worker（43262）+ production-mode Worker（43263）；本轮 **HTTP 32/32 + UI 8 passed** | 可用 |
 | `npm run test:e2e:author:h1` | E07 字面 H1 端到端证据脚本（临时内容根真实构建公开站） | 可用 |
 | `npm run build` | 公开站静态构建 + 作者端 Vite/Worker 生产构建（真实内容本轮 **11 pages**） | 可用 |
@@ -259,9 +261,9 @@ npm run build
 |---|---|---|
 | 公开站 → GitHub Pages | 在基于 `origin/main` 的 worktree 改完 → `git push origin "${br}:main"`（`$br` 是你的临时分支名）自动触发 `.github/workflows/pages.yml`；也可在 Actions 里手动 Run workflow（**必须选 main**） | `[台账]` **已上线（2026-11-27）**：<https://shironeshiyaro.github.io/> |
 | 作者端 → Cloudflare Workers | **在仓库根**先设 `PUBLIC_SITE_ORIGIN`（https、非 localhost，否则守卫直接拒绝），再 `npx wrangler login` 和 `npm run deploy:author` | `[台账]` **已部署（2026-11-27）**：<https://selfpage-author.2026310867.workers.dev/>；再次部署需用户当次确认 |
-| GitHub App（生产 / 测试分离） | github.com 网页操作，client secret 只进 `wrangler secret put` | `[台账]` 生产 App **已创建**（App ID `5947211`，只装正式仓库）；测试 App `5919244` 已完成使命、**不要**再装到正式仓库，删除时机由用户指导 |
+| GitHub App（生产 / 测试分离） | github.com 网页操作，client secret 只进 `wrangler secret put` | `[台账]` 生产 App **已创建并在用**（App ID `5947211`，只装正式仓库）；测试 App `5919244` 与测试仓库 `selfpage-publish-test` **已于 2026-11-27 删除** |
 
-**仍 NOT RUN（2026-11-27，节选；完整清单见 [任务 10 执行记录](docs_AI/记录/r10/01-执行记录.md) §7）**：`/demo/` 的线上部署（本地两 base 已验证，线上 404）、真实 iOS/Android 真机矩阵与移动读屏（`MOBILE_PENDING`）、桌面 Safari/Firefox、真实浏览器翻译与真实 Windows 高对比度、跨 colo 与“停 Worker 后线上可读”的线上实测、专用测试仓库的 Tier-2 发布、作者端 `wrangler rollback` 演练、正式仓库分支保护 / `github-pages` environment 复核。
+**仍 NOT RUN（2026-11-27，节选；完整清单见 [任务 10 执行记录](docs_AI/记录/r10/01-执行记录.md) §7）**：`/demo/` 的线上部署（本地两 base 已验证，线上 404）、真实 iOS/Android 真机矩阵与移动读屏（`MOBILE_PENDING`）、桌面 Safari/Firefox、真实浏览器翻译与真实 Windows 高对比度、跨 colo 与“停 Worker 后线上可读”的线上实测、专用测试仓库的 Tier-2 发布（测试资源已删除）、作者端 `wrangler rollback` 演练、正式仓库分支保护 / `github-pages` environment 复核。
 
 硬规则：
 
@@ -414,12 +416,12 @@ H1 保留完整标题；文件名标题必须等于 H1 经 New! 安全化规则�
 
 ## 安全边界
 
-- 生产 GitHub App 只安装到正式目标仓库，只申请 Contents Read/Write 和自动 Metadata Read；真实 E2E 使用独立测试 App 和专用测试仓库。两套 App 的 client id/secret、callback、数字 allowlist 完全隔离（[部署指南](docs/部署指南.md) §5）。
+- 生产 GitHub App 只安装到正式目标仓库，只申请 Contents Read/Write 和自动 Metadata Read；真实 E2E 使用独立测试 App 和专用测试仓库（**该测试资源已于 2026-11-27 删除**，重做需重建）。两套 App 的 client id/secret、callback、数字 allowlist 完全隔离（[部署指南](docs/部署指南.md) §5）。
 - client secret、GitHub token、session/token 密钥不得进入前端 bundle、URL、localStorage、日志或 Git 历史。真实值只经 `wrangler secret put`（Cloudflare）与用户本机的 gitignored `.dev.vars`；仓库根 `.dev.vars.example` 只有变量名与说明。
 - 两个 GitHub Actions workflow 都不读 repository secret，因此没有 PAT/私钥进日志的路径；`.github/workflows/*` 的权限、触发与 Action 版本由 `npm run check:workflows` 机械校验。
 - `apps/author/wrangler.jsonc` 不得出现 `APP_ENV`（那会打开 mock publish 与测试时钟）；`npm run check:worker` 与 `npm run deploy:author` 都会先拦这一条。
 - OAuth state 与 PKCE S256 同时使用；session 使用同源 HttpOnly Cookie。OAuth transaction、session 与发布事务使用单作者固定 Durable Object，保证一次性 callback、立即登出和重试对账，不使用最终一致的 KV 承担这些保证。
-- 真实写入测试只能使用专用测试仓库，不能用个人主仓库冒险。
+- 真实写入测试只能使用专用测试仓库，不能用个人主仓库冒险（测试仓库已删除，现无可用的一次性写入目标；如需重做先重建测试仓库 + 测试 App）。
 - commit 成功不等于 Pages 已部署；界面和报告必须分别陈述。
 - 公开站**没有** CSP：GitHub Pages 不能设响应头，而 `<meta>` CSP 不支持 `frame-ancestors`。`[实测 2026-11-27，真实内容 11 页]` 产物里有**四种**内联脚本（506B/4469B 每页 + Home 93B + Settings 586B），只给其中两个常量做 hash 会静默拦掉另外两个；脚本/构建变化后大小可能变，必须按[部署指南](docs/部署指南.md) §9.3 重新提取。做法、可执行的 hash 提取命令与拦截检查见[部署指南](docs/部署指南.md) §9。
 
