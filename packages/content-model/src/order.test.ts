@@ -17,7 +17,8 @@ describe('order helpers', () => {
       'blog/2025/a/',
       'blog/2025/b/',
     ]);
-    // 2025 is after 2026 even though its time is later.
+    // Date wins over time: the 2025 post sorts after the 2026 post even though
+    // its clock time (09:00) is earlier than the 2026 post's (12:52).
     expect(compareBlogPostsNewestFirst(posts[0]!, posts[1]!)).toBeGreaterThan(0);
   });
 

@@ -143,7 +143,8 @@ docs_AI/
   git fetch origin
   git checkout origin/main -- content/blog
   ```
-  或按单个文件 `git show origin/main:"content/blog/2026/<file>.md" > "content/blog/2026/<file>.md"`。**公开树的 `content/` 才是线上内容唯一来源，开发树不是镜像**；不要反过来把开发树的 `content/` 直接推上去，那会删掉线上文章。
+  两个陷阱：① `git checkout` **只新增/覆盖文件，不会删除**——线上删掉的文章仍留在开发树，要手动 `Remove-Item` 对应文件；② **不要**用 `git show ... > file`：Windows PowerShell 5.1 的 `>` 会写成 UTF-16LE，`npm run check` 的格式检查会红。只看单篇用 `git show origin/main:"content/blog/2026/<file>.md"`（只读输出），要落地用 `git checkout origin/main -- "content/blog/2026/<file>.md"`。
+  **公开树的 `content/` 才是线上内容唯一来源，开发树不是镜像**；不要反过来把开发树的 `content/` 直接推上去，那会删掉线上文章。
 - **绝不 `git push origin main`**（推错树/被拒）、**绝不 force-push**。详见[运维、排障与回滚](docs/运维排障与回滚.md) §3。
 
 ## 本地环境要求
@@ -256,7 +257,7 @@ npm run build
 
 | 单元 | 怎么部署 | 状态 |
 |---|---|---|
-| 公开站 → GitHub Pages | 在基于 `origin/main` 的 worktree 改完 → `git push origin <br>:main` 自动触发 `.github/workflows/pages.yml`；也可在 Actions 里手动 Run workflow（**必须选 main**） | `[台账]` **已上线（2026-11-27）**：<https://shironeshiyaro.github.io/> |
+| 公开站 → GitHub Pages | 在基于 `origin/main` 的 worktree 改完 → `git push origin "${br}:main"`（`$br` 是你的临时分支名）自动触发 `.github/workflows/pages.yml`；也可在 Actions 里手动 Run workflow（**必须选 main**） | `[台账]` **已上线（2026-11-27）**：<https://shironeshiyaro.github.io/> |
 | 作者端 → Cloudflare Workers | **在仓库根**先设 `PUBLIC_SITE_ORIGIN`（https、非 localhost，否则守卫直接拒绝），再 `npx wrangler login` 和 `npm run deploy:author` | `[台账]` **已部署（2026-11-27）**：<https://selfpage-author.2026310867.workers.dev/>；再次部署需用户当次确认 |
 | GitHub App（生产 / 测试分离） | github.com 网页操作，client secret 只进 `wrangler secret put` | `[台账]` 生产 App **已创建**（App ID `5947211`，只装正式仓库）；测试 App `5919244` 已完成使命、**不要**再装到正式仓库，删除时机由用户指导 |
 
@@ -267,7 +268,7 @@ npm run build
 - `.github/workflows/ci.yml` **只验证不部署**（权限只有 `contents: read`）；唯一的部署者是 `pages.yml`。CI 有两个并行 job：站点 E2E（`ci-site-e2e` artifact）与作者端 E2E（`ci-author-e2e` artifact），失败也都留证据。
 - 两个 workflow 都**不读任何 repository secret**：公开站的 `SITE_URL`/`BASE_PATH`/`PUBLIC_AUTHOR_ORIGIN` 用仓库 **Variables**（公开值）。
 - 真实的 `pages.yml` 手动运行（Run workflow）**必须选 main**：非 main ref 会在第一个 step 被拒绝，避免绕过 main 与分支保护。
-- **交付必须走 `origin/main` worktree**：先 `git fetch origin`，再 `git worktree add F:\SelfPage-worktrees\_tmp\<br> -b <br> origin/main` → 改 → `git push origin <br>:main`。**绝不 `git push origin main`、绝不 force-push**（本地 `main` 与 `origin/main` 无共同祖先，见上文“两棵树”）。推送被 non-fast-forward 拒绝时先 `git fetch origin` 再重试，不要 force。
+- **交付必须走 `origin/main` worktree**：先 `git fetch origin` 并用 `git rev-parse origin/main` 确认与 GitHub main 一致，再按上文「两棵树」的 `$br` 示例建 worktree → 改 → `git push origin "${br}:main"`。**绝不 `git push origin main`、绝不 force-push**（本地 `main` 与 `origin/main` 无共同祖先，见上文“两棵树”）。推送被 non-fast-forward 拒绝时先 `git fetch origin` 再重试，不要 force。
 - 真实 push / 再次部署 / 配置 secret / 真实发布都要用户当次确认，清单见[运维、排障与回滚](docs/运维排障与回滚.md) §4。
 - **commit 成功 ≠ 部署成功**：只看 `Deploy public site to GitHub Pages` 这个 workflow 的 run，不要用 CI 变绿推断站点已更新。
 
@@ -303,7 +304,7 @@ git push origin "${br}:main"
 git worktree remove "F:\SelfPage-worktrees\_tmp\$br"
 ```
 
-删完按第 3 条同步开发树；想恢复用 `git revert <删除 commit>`（同样先 fetch，在 `origin/main` worktree 里做）。
+删完按第 3 条同步开发树（注意 `git checkout` **不会删除**本地文件，要在开发树里手动删掉那一篇）；想恢复用 `git revert <删除 commit>`（同样先 fetch，在 `origin/main` worktree 里做）。
 
 ### 3. 本地“pull” / 同步线上内容
 
@@ -335,12 +336,16 @@ git reset --hard origin/main
 - **Settings → Environments → github-pages**：部署历史与保护规则。
 - **commit 成功 ≠ 部署成功**：只看部署 workflow 的 run 与线上页面。
 
-### 5. 拒绝陌生人的 PR / 隐私设置
+### 5. 陌生人的 PR / 隐私设置
 
-GitHub **没有**“关闭 Pull Request”的开关；别人永远可以 Fork 并开 PR。能做的设置是：
+**GitHub 从 2026-02-13 起可以关掉 Pull Request**（此前不能）：Settings → General → **Features** 里有两种做法——取消 **Pull requests**（整个 PR 标签页消失，任何人都不再能开 PR），或选 **Collaborators only**（PR 页仍在，但只有协作者能开）。官方说明：<https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/disabling-pull-requests>
 
-- **Settings → General → Features**：当前 Issues **开**、Wiki **开**、Projects **开**、Discussions 关。建议把 Issues/Wiki/Projects 关掉（Settings 里逐个取消勾选）。
-- **Settings → Actions → General → Fork pull request workflows**：选 **Require approval for all outside collaborators**（外部 PR 的 CI 要你先批才跑）。
+建议：个人主页用 **Collaborators only**（以后想自己开 PR 验 CI 仍然可用），或直接关掉 **Pull requests**（最省心；代价是以后不能再用 PR 验证"PR 不部署"）。
+
+其余相关设置：
+
+- **Settings → General → Features**：当前 Issues **开**、Wiki **开**、Projects **开**、Discussions 关。用不到的都可以关掉。
+- **Settings → Actions → General → Fork pull request workflows**：选 **Require approval for all external contributors**（旧版 UI 的文案是 "Require approval for all outside collaborators"）。
 - **Settings → Access → Collaborators**：只保留自己。有人开 PR 就 Close（不合并永远不会生效）；必要时 Block。
 - **安全事实**：`.github/workflows/ci.yml` 权限只有 `contents: read`，`pages.yml` 只在 main 上由 push/手动触发——**别人的 PR 永远不能发布或改你的站点**。
 - **不建议把仓库改私有**：GitHub Pages 免费版对私有仓库不支持，站点会消失。
