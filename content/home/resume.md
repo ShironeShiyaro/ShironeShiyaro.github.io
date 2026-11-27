@@ -1,22 +1,54 @@
 # About Me
 
-This is placeholder copy for the Home page. Replace it with a short introduction to the site owner. It is written in English so the page is readable before real content is added.
+**中文名：** 曾昕杨
 
-The finished Home page will present a concise resume. Until then, this text exists only to keep the layout and navigation testable.
+**English Name:** Xinyang Zeng / Jerry Zeng
+
+**日本語の名前：** 白音シヤロ
+
+**College:** Harbin Institute of Technology, Shenzhen（哈尔滨工业大学（深圳））
+
+**Email:** 2026310867@stu.hit.edu.cn; shiyaroshirone@gmail.com
+
+**GitHub:** https://github.com/ShironeShiyaro  [Click](https://github.com/ShironeShiyaro)
+
+**Social Media:** 
+- bilibili: [暘谷之杨](https://space.bilibili.com/3546674563648324)
+- X: [白音@ShironeShiyaro](https://x.com/ShironeShiyaro)
+
+---
+
+I'm a freshman majoring in Computer Science at Harbin Institute of Technology, Shenzhen. I'm intereted in Brain-inspired Computing, using c++ to simulate the work of brain. I'm also a newcomer to the VEX competition. Feel free to contact me if you are interested in these too.
+
+---
 
 # Education
 
-- **Example University** — B.Sc. in Computer Science (fictional placeholder), 2022–2026
-- **Example Secondary School** — High school diploma (fictional placeholder), 2019–2022
+- **Harbin Institute of Technology, Shenzhen** — Pursuing a bachelor's degree in computer science, 2026-Now
+
+---
 
 # Skills
 
-- Programming: Python, C++, TypeScript (placeholder list)
-- Tools: Git, Linux command line, static site tooling
-- Interests: accessible interfaces, content systems, technical writing
+- Programming: Python, C++
+- No more skills now...
+
+---
 
 # Projects
 
-- **Example Static Site** — A placeholder project used to test the Home page list layout. No real project link is claimed.
-- **Sample Content Pipeline** — A placeholder project about validating Markdown before a build.
-- **Learning Notes** — A placeholder collection of short technical notes.
+- **AI-powered conversational visual novel** — apply AI in the convensional visual novel, replacing the communication and options. Including self-innovate engine and programming language for this type of VN, visualized pages for the author and the VN itself.
+- Pending...
+- Pending too...
+
+---
+
+# News
+
+- Nov. 2026: Create this page.
+
+---
+
+# About the blog
+
+They were written for fun, not for formal situation. It may include my notes, diaries, comments on sth, new ideas, the progress of my project and so on.
