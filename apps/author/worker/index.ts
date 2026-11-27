@@ -416,10 +416,25 @@ async function handleMockPublish(request: Request): Promise<Response> {
     );
   }
   if (outcome === 'conflict') {
+    // F2 follow-up: the real Worker's 409 always carries the existing file
+    // (`conflictResponse` -> existing.path/url), and the UI renders its
+    // "View existing file" link only from that field. The mock surface has no
+    // real repository, so mirror the real blob URL shape; otherwise the mock
+    // conflict terminal is not representative and the link never renders.
+    const existingPath = plan.plan.path;
     return jsonResponse(
       publishError(
         'conflict',
         'A different post already exists at this path. Nothing was overwritten. Your draft is safe.',
+        {
+          existing: {
+            path: existingPath,
+            url: `https://github.com/selfpage-author-mock/selfpage-publish-test/blob/main/${existingPath
+              .split('/')
+              .map((segment) => encodeURIComponent(segment))
+              .join('/')}`,
+          },
+        },
       ),
       409,
     );

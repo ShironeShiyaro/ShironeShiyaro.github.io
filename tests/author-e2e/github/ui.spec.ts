@@ -247,6 +247,11 @@ test.describe('real GitHub route UI', () => {
     expect(conflict.status(), await conflict.text()).toBe(409);
     await expect(page.getByRole('heading', { name: 'Publishing conflict' })).toBeVisible();
     await expect(page.getByTestId('view-existing')).toBeVisible();
+    await expect(page.getByTestId('view-existing')).toHaveAttribute(
+      'href',
+      /\/blob\/main\/content\/blog\/.+/u,
+    );
+    await expect(page.getByTestId('rename-title')).toHaveText('Rename title');
     await expect(page.getByTestId('publish-new-timestamp')).toBeVisible();
     const before = await mockState(request);
     expect(before.commits).toHaveLength(1);

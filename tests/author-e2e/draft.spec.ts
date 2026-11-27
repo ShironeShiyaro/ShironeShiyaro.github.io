@@ -114,6 +114,26 @@ test.describe('browser drafts and access states', () => {
     await chooseMockPublishOutcome(page, 'conflict');
     await page.getByTestId('publish-button').click();
     await expect(page.getByRole('heading', { name: 'Publishing conflict' })).toBeVisible();
+
+    // F2 (P1): the conflict terminal must offer BOTH "View existing" and
+    // "Rename". The view link must carry the real blob URL shape; Rename is a
+    // focus-and-select action that never edits the title or the draft.
+    const viewExisting = page.getByTestId('view-existing');
+    await expect(viewExisting).toBeVisible();
+    await expect(viewExisting).toHaveAttribute(
+      'href',
+      /^https:\/\/github\.com\/.+\/blob\/main\/content\/blog\/2026\/.+\.md$/u,
+    );
+    const rename = page.getByTestId('rename-title');
+    await expect(rename).toHaveText('Rename title');
+    const titleBefore = await page.getByTestId('post-title').textContent();
+    const draftBefore = await readDraft(page);
+    await rename.click();
+    await expect(page.getByTestId('post-title')).toBeFocused();
+    expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toBe(titleBefore);
+    expect(await page.getByTestId('post-title').textContent()).toBe(titleBefore);
+    expect(await readDraft(page)).toEqual(draftBefore);
+
     await expectDraftSaved(page);
 
     await page.reload();

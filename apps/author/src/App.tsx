@@ -672,6 +672,27 @@ export default function App() {
     });
   };
 
+  /**
+   * F2 follow-up: the conflict terminal must offer Rename. This is a
+   * focus-and-select action only: it neither edits the title nor touches the
+   * draft, so the author keeps full control of the rename.
+   */
+  const focusAndSelectTitle = () => {
+    const element = titleRef.current;
+    if (element === null) {
+      return;
+    }
+    element.focus();
+    const selection = window.getSelection();
+    if (selection === null) {
+      return;
+    }
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  };
+
   const updateTitle = (value: string) => {
     setTitle(value);
     setDirty(true);
@@ -1752,6 +1773,7 @@ export default function App() {
                 onRetry={() => void handlePublish()}
                 onReauthorize={() => void continueWithGitHub()}
                 onNewTimestamp={() => void handlePublish(true)}
+                onRenameTitle={focusAndSelectTitle}
               />
             </div>
 
@@ -1835,6 +1857,7 @@ interface PublishStatusProps {
   onRetry: () => void;
   onReauthorize: () => void;
   onNewTimestamp: () => void;
+  onRenameTitle: () => void;
 }
 
 const DEPLOYMENT_LABELS: Record<DeploymentStatus, string> = {
@@ -1855,6 +1878,7 @@ function PublishStatus({
   onRetry,
   onReauthorize,
   onNewTimestamp,
+  onRenameTitle,
 }: PublishStatusProps): ReactNode {
   if (publish.kind === 'idle') {
     return null;
@@ -1919,6 +1943,14 @@ function PublishStatus({
             </p>
           ) : null}
           <p>
+            <button
+              type="button"
+              className="button"
+              data-testid="rename-title"
+              onClick={onRenameTitle}
+            >
+              Rename title
+            </button>{' '}
             <button
               type="button"
               className="button"
