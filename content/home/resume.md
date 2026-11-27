@@ -12,7 +12,7 @@
 
 **GitHub:** https://github.com/ShironeShiyaro  [Click](https://github.com/ShironeShiyaro)
 
-**Social Media:** 
+**Social Media:**
 - bilibili: [暘谷之杨](https://space.bilibili.com/3546674563648324)
 - X: [白音@ShironeShiyaro](https://x.com/ShironeShiyaro)
 
