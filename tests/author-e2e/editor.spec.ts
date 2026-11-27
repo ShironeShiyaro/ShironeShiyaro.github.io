@@ -220,7 +220,9 @@ test.describe('editor surface', () => {
       selectionEnd: 8,
     });
     await page.keyboard.press('Enter');
-    await page.waitForTimeout(200);
+    // R09-9: wait for the committed composition text instead of sleeping 200 ms;
+    // the assertion below then reads a settled value on a slow CI runner too.
+    await expect(title).toHaveText('Hello zhongwen');
 
     const text = (await title.textContent()) ?? '';
     const singleLineTitle = text.trim();

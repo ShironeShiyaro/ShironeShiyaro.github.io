@@ -45,6 +45,15 @@ const PROD_PORT = 43244;
 const TEST_INSPECTOR_PORT = 9231;
 const PROD_INSPECTOR_PORT = 9232;
 const FIXED_CLOCK = '2026-11-23T15:42:15Z';
+// R09-9: the author shell bakes its navigation from the same content tree as the
+// public site (apps/author/vite.config.ts), so a real publish changes the nav.
+// The 2026-11-27 publish added a third 2026 post and two exact-count assertions
+// in shell.spec.ts failed (Expected 2, Received 3) — locally and in CI. Point
+// the test build at the committed, byte-identical snapshot instead: the E2E
+// suite then tests the navigation behaviour, not today's article count.
+// This is the same seam R09-8 used for packages/content-model/src/load.test.ts;
+// real content is still built and checked by `npm run check` / `npm run build`.
+const E2E_CONTENT_ROOT = join(root, 'tests', 'fixtures', 'valid', 'site-content', 'content');
 const RUN_STARTED_AT = new Date().toISOString();
 const logs = {
   build: join(assetsDir, 'author-e2e-build.log'),
@@ -252,8 +261,13 @@ async function main() {
   // pull the ground out from under it.
   cleanPersistDirs();
 
-  log('building the author client with Vite');
-  const build = await runLogged(process.execPath, [viteBin, 'build'], { cwd: authorDir }, logs.build);
+  log(`building the author client with Vite (content root: ${E2E_CONTENT_ROOT})`);
+  const build = await runLogged(
+    process.execPath,
+    [viteBin, 'build'],
+    { cwd: authorDir, env: { ...process.env, SELF_PAGE_CONTENT_ROOT: E2E_CONTENT_ROOT } },
+    logs.build,
+  );
   if (build.exitCode !== 0) {
     throw new Error(`vite build failed with exit code ${build.exitCode}; see ${logs.build}`);
   }

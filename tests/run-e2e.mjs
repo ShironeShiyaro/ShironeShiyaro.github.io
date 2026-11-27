@@ -6,6 +6,14 @@
 // running Playwright, refuses to reuse an occupied port, and records PID/log
 // paths. Playwright's managed `webServer` is not used because its teardown can
 // hang on Windows when the preview child inherits the stdout pipe.
+//
+// R09-9: the E2E pages are built from the committed, byte-identical content
+// snapshot at tests/fixtures/valid/site-content/content, not from the live
+// content/ tree. A real publish must not change what this suite asserts: before
+// this, adding the fifth published article broke exact counts/labels here too
+// (the author E2E reproduced the same class of failure). Real content still
+// gets built by `npm run build` and is validated by `tests/check-content-build.mjs`
+// inside this runner; the browser suite tests the site, not today's article list.
 import { spawn, spawnSync } from 'node:child_process';
 import { closeSync, mkdirSync, openSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
@@ -17,6 +25,7 @@ const siteRoot = join(repoRoot, 'apps', 'site');
 const astroBin = join(repoRoot, 'node_modules', 'astro', 'bin', 'astro.mjs');
 const playwrightCli = join(repoRoot, 'node_modules', '@playwright', 'test', 'cli.js');
 const artifactDir = join(repoRoot, 'test-results', 'e2e-preview');
+const e2eContentRoot = join(repoRoot, 'tests', 'fixtures', 'valid', 'site-content', 'content');
 mkdirSync(artifactDir, { recursive: true });
 
 const rootPort = Number(process.env.E2E_ROOT_PORT ?? '43211');
@@ -89,8 +98,8 @@ async function assertPortsFree() {
 
 function buildSite(basePath, label) {
   const args = ['run', 'build', '--workspace', '@selfpage/site', '--', '--force'];
-  const env = { ...childEnv, BASE_PATH: basePath };
-  console.log(`\n[e2e] building ${label} site (BASE_PATH=${basePath})`);
+  const env = { ...childEnv, BASE_PATH: basePath, SELF_PAGE_CONTENT_ROOT: e2eContentRoot };
+  console.log(`\n[e2e] building ${label} site (BASE_PATH=${basePath}, content root=${e2eContentRoot})`);
   const result =
     npmCliPath && npmCliPath.endsWith('.js')
       ? spawnSync(process.execPath, [npmCliPath, ...args], { cwd: repoRoot, stdio: 'inherit', env })
