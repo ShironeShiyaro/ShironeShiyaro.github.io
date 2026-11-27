@@ -5,13 +5,20 @@ import { join } from 'node:path';
 /**
  * Task 04 browser coverage for Home (resume) and Publications.
  *
- * The Home expectations are derived from the real resume Markdown, so changing
- * an H1 without rebuilding/reloading the page makes this suite fail instead of
- * silently accepting hard-coded section data. Everything else is checked
+ * The Home expectations are derived from the Markdown the E2E preview was
+ * built from — the frozen snapshot at
+ * `tests/fixtures/valid/site-content/content` (see `tests/run-e2e.mjs`), passed
+ * in as `SELF_PAGE_CONTENT_ROOT`. Reading the real `content/` directory instead
+ * would make the suite fail whenever the author edits the resume, even though
+ * the page under test (built from the snapshot) did not change; that is exactly
+ * the coupling R09 removed from the build step. Everything else is checked
  * against the rendered DOM and the public navigation contract from task 03.
  */
 
-const RESUME_PATH = join(process.cwd(), 'content', 'home', 'resume.md');
+const CONTENT_ROOT =
+  process.env.SELF_PAGE_CONTENT_ROOT ??
+  join(process.cwd(), 'tests', 'fixtures', 'valid', 'site-content', 'content');
+const RESUME_PATH = join(CONTENT_ROOT, 'home', 'resume.md');
 
 interface ResumeHeading {
   title: string;

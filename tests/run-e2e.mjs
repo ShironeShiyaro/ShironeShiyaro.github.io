@@ -38,7 +38,17 @@ const marker = `https://${runId}.invalid`;
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const npmCliPath = process.env.npm_execpath;
 
-const childEnv = { ...process.env, PUBLIC_AUTHOR_ORIGIN: marker, FORCE_COLOR: '0' };
+const childEnv = {
+  ...process.env,
+  PUBLIC_AUTHOR_ORIGIN: marker,
+  // R11/2026-11-27: expose the frozen content snapshot to the Playwright
+  // process too. `tests/e2e/home.spec.ts` derives the expected Home sections
+  // from the resume Markdown; without this it read the real `content/` while
+  // the preview was built from the snapshot, so editing the resume turned the
+  // gate red even though the page under test had not changed.
+  SELF_PAGE_CONTENT_ROOT: e2eContentRoot,
+  FORCE_COLOR: '0',
+};
 delete childEnv.NO_COLOR;
 if (!childEnv.SITE_URL || childEnv.SITE_URL.trim() === '') {
   delete childEnv.SITE_URL;
